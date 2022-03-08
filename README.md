@@ -1,8 +1,8 @@
 # asc-ImageJ-DSX-Annotator
- Simple ImageJ macro script to label Olympus DSX image with acquisition parameters extracted from the image header. 
+ A simple ImageJ macro to label an Olympus DSX digital microscope image with the acquisition parameters extracted from the image header. 
  <p><img src="/images/DSXAnnotator_v220303_512x237.jpg" alt="Example of multi-line DSX image label" width="50%" /></p>
       <br />
-  The label can be formatted with outlines and shadows for better visibility. The label can also be placed underneath the image.  It also sets the image scale if it has not been previously set.
+  Any combination of parameters can be selected and the chosen parameters are saved for the next use. The label can be formatted with outlines and shadows for better visibility. The label can also be placed underneath the image.  The macro also sets the image scale if it has not been previously set.
    <p><img src="/images/DSXAnnotatorMenu_v220303_958x960_PAL.png" alt="ASC_DSX-Annotator Menu"  height="420" /> </p>
    
    <sub><sup>
