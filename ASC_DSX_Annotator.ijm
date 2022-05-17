@@ -4,10 +4,11 @@
 	It also automatically embeds the distance calibration in microns if there is no calibration present (or it is in inches).
 	v220301: 1st working version
 	v220304: Added option to put annotation bar under image SEM-style.
-	v220307: Saved preferences added.
+	v220307: Saved preferences added. v220307-f1 restored saveSettings
  */
 macro "Add Multiple Lines of Metadata to DSX Image" {
-	macroL = "DSX_Annotator_v220307.ijm";
+	macroL = "DSX_Annotator_v220307-f1.ijm";
+	saveSettings; /* for restoreExit */	
 	imageTitle = getTitle();
 	if (!endsWith(toLowerCase(imageTitle), '.dsx'))
 		showMessageWithCancel("Title does not end with \"DSX\"", "A DSX image is required, do you want to continue?" + t + " ?");
@@ -574,6 +575,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		   v181017-8 added off-white and off-black for use in gif transparency and also added safe exit if no color match found
 		   v191211 added Cyan
 		   v211022 all names lower-case, all spaces to underscores v220225 Added more hash value comments as a reference
+		   REQUIRES restoreExit
 		*/
 		if (colorName == "white") cA = newArray(255,255,255);
 		else if (colorName == "black") cA = newArray(0,0,0);
@@ -695,6 +697,25 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 			}
 		}
 		return index;
+	}
+	function memFlush(waitTime) {
+		run("Reset...", "reset=[Undo Buffer]"); 
+		wait(waitTime);
+		run("Reset...", "reset=[Locked Image]"); 
+		wait(waitTime);
+		call("java.lang.System.gc"); /* force a garbage collection */
+		wait(waitTime);
+	}
+	function restoreExit(message){ /* Make a clean exit from a macro, restoring previous settings */
+		/* v200305 first version using memFlush function
+			v220316 if message is blank this should still work now
+			REQUIRES saveSettings AND memFlush
+		*/
+		restoreSettings(); /* Restore previous settings before exiting */
+		setBatchMode("exit & display"); /* Probably not necessary if exiting gracefully but otherwise harmless */
+		memFlush(200);
+		if (message!="") exit(message);
+		else exit;
 	}
 	function stripKnownExtensionFromString(string) {
 		/*	Note: Do not use on path as it may change the directory names
