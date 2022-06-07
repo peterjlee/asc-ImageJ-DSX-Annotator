@@ -4,10 +4,10 @@
 	It also automatically embeds the distance calibration in microns if there is no calibration present (or it is in inches).
 	v220301: 1st working version
 	v220304: Added option to put annotation bar under image SEM-style.
-	v220307: Saved preferences added. v220307-f1 restored saveSettings f2: updated pad function
+	v220307: Saved preferences added. v220307-f1 restored saveSettings f3: updated pad function
  */
 macro "Add Multiple Lines of Metadata to DSX Image" {
-	macroL = "DSX_Annotator_v220307-f2.ijm";
+	macroL = "DSX_Annotator_v220307-f3.ijm";
 	saveSettings; /* for restoreExit */	
 	imageTitle = getTitle();
 	if (!endsWith(toLowerCase(imageTitle), '.dsx'))
@@ -647,18 +647,11 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		 return hexName;
 	}
 	function pad(n) {
-		/* v220603-6 required for versions >1.53s32 as "toString" outputs a string as NaN in those versions rather than passing through the string */
-		l = lengthOf(n);
-		s = "";
-		for (i = 0; i < l; i++){
-			v = substring(n,i,i+1);
-			w = toString(v);
-			if (isNaN(w)) w = v;
-			s += w;
-		}
-		if (lengthOf(s)==1) s = "0" + s;
-		return s;
+	  /* This version by Tiago Ferreira 6/6/2022 eliminates the toString macro function */
+	  if (lengthOf(n)==1) n= "0"+n; return n;
+	  if (lengthOf(""+n)==1) n= "0"+n; return n;
 	}
+	
 		
 	/*	End of Color Functions	*/
 	
