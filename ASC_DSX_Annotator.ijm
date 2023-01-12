@@ -4,10 +4,11 @@
 	It also automatically embeds the distance calibration in microns if there is no calibration present (or it is in inches).
 	v220301: 1st working version
 	v220304: Added option to put annotation bar under image SEM-style.
-	v220307: Saved preferences added. v220307-f1 restored saveSettings f3: updated pad function
+	v220307: Saved preferences added. v220307-f1 restored saveSettings f3: updated pad function f4: updated functions 230111
+	v230112: Now works with montages generated and resized by DSX software.
  */
 macro "Add Multiple Lines of Metadata to DSX Image" {
-	macroL = "DSX_Annotator_v220307-f3.ijm";
+	macroL = "DSX_Annotator_v230112.ijm";
 	saveSettings; /* for restoreExit */	
 	imageTitle = getTitle();
 	if (!endsWith(toLowerCase(imageTitle), '.dsx'))
@@ -22,10 +23,12 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	if (prefsParameters!="None") defaultSettings = split(prefsParameters,prefsDelimiter);
 	else defaultSettings = newArray("ObservationMethod","ImageType","ImageSizePix","ImageSizeMicrons","ObjectiveLensType","ObjectiveLensMagnification","ZoomMagnification");
 	/* End preferences recall */
-	settingsDSX = newArray("ObservationMethod","ImageType","ObjectiveLensMagnification","ImageHeight","ImageWidth","ImageDataPerPixelX","ImageDataPerPixelY","ImageDataPerPixelZ","ObjectiveLensType","ZoomMagnification","DigitalZoomMagnification","OpiticalZoomMagnification","ActualMagnificationFor1xZoom","FileVersion","ImageFlip","ImageRotation","ImageRotationAngle","AE","AELock","AEMode","AETargetValue","Binning","BinningLevel","ShadingCorrection","ImageAspectRatio","NoiseReduction","NoiseReductionLevel","BlurCorrection","BlurCorrectionValue","ContrastMode","SharpnessMode","FieldCurvatureCorrection","MicroscopeControllerVersion","StagePositionX","StagePositionY","ImagingAS","BFLight","BFLightBrightnessLevel","RingLightBlock","DFLightBlock","DFLightAngle","DFLightMode","BackLight","BackLightBrightnessLevel","DICShearingLevel","AnalyzerShearingLevel","PBF","CameraName","BlueGainLevel","BlueOffsetLevel","GammaCorrectionLevel","GreenGainLevel","GreenOffsetLevel","RedGainLevel","RedOffsetLevel");
+	settingsDSX = newArray("ObservationMethod","ImageType","ObjectiveLensMagnification","ImageHeight","ImageWidth","ColorDataPerPixelX","ImageDataPerPixelX","ColorDataPerPixelY","ImageDataPerPixelY","ColorDataPerPixelZ","ImageDataPerPixelZ","ObjectiveLensType","ZoomMagnification","DigitalZoomMagnification","OpiticalZoomMagnification","ActualMagnificationFor1xZoom","FileVersion","ImageFlip","ImageRotation","ImageRotationAngle","AE","AELock","AEMode","AETargetValue","Binning","BinningLevel","ShadingCorrection","ImageAspectRatio","NoiseReduction","NoiseReductionLevel","BlurCorrection","BlurCorrectionValue","ContrastMode","SharpnessMode","FieldCurvatureCorrection","MicroscopeControllerVersion","StagePositionX","StagePositionY","ImagingAS","BFLight","BFLightBrightnessLevel","RingLightBlock","DFLightBlock","DFLightAngle","DFLightMode","BackLight","BackLightBrightnessLevel","DICShearingLevel","AnalyzerShearingLevel","PBF","CameraName","BlueGainLevel","BlueOffsetLevel","GammaCorrectionLevel","GreenGainLevel","GreenOffsetLevel","RedGainLevel","RedOffsetLevel");
 	settingsN = lengthOf(settingsDSX);
 	/* Note there is a typo in the Olympus section name: ObsevationSettingInfo[sic] so this may be corrected in the future */
-	settingsDSXTitles = newArray("Observation Method","Image Type","Objective Lens Magnification","Image Height \(pixels\)","Image Width \(pixels\)","Pixel Width  \(pm\)","Pixel Height \(pm\)","Pixel Depth \(pixels\)","Objective Lens Type","Zoom Magnification","Digital Zoom Magnification","Optical Zoom Magnification","Actual Magnification For 1x Zoom","File Version","Image Flip","Image Rotation","Image Rotation Angle","AE","AE Lock","AE Mode","AE Target Value","Binning ","Binning Level","Shading Correction","Image Aspect Ratio","Noise Reduction","Noise Reduction Level","Blur Correction","Blur Correction Value","Contrast Mode","Sharpness Mode","Field Curvature Correction","Microscope Controller Version","Stage Position X","Stage Position Y","Imaging AS","BF Light","BF Light Brightness Level","Ring Light Block","DF Light Block","DF Light Angle","DF Light Mode","Back Light","Back Light BrightnessLevel","DIC ShearingLevel","Analyzer Shearing Level","PBF","Camera Name","Blue Gain Level","Blue Offset Level","Gamma Correction Level","Green Gain Level","Green Offset Level","RedGain Level","Red Offset Level");
+	settingsDSXTitles = newArray("Observation Method","Image Type","Objective Lens Magnification","Image Height \(pixels\)","Image Width \(pixels\)","Pixel Width  \(pm\)","Original Pixel Width  \(pm\)","Pixel Height \(pm\)","Original Pixel Height \(pm\)","Pixel Depth \(pixels\)","Original Pixel Depth \(pixels\)","Objective Lens Type","Zoom Magnification","Digital Zoom Magnification","Optical Zoom Magnification","Actual Magnification For 1x Zoom","File Version","Image Flip","Image Rotation","Image Rotation Angle","AE","AE Lock","AE Mode","AE Target Value","Binning ","Binning Level","Shading Correction","Image Aspect Ratio","Noise Reduction","Noise Reduction Level","Blur Correction","Blur Correction Value","Contrast Mode","Sharpness Mode","Field Curvature Correction","Microscope Controller Version","Stage Position X","Stage Position Y","Imaging AS","BF Light","BF Light Brightness Level","Ring Light Block","DF Light Block","DF Light Angle","DF Light Mode","Back Light","Back Light BrightnessLevel","DIC ShearingLevel","Analyzer Shearing Level","PBF","Camera Name","Blue Gain Level","Blue Offset Level","Gamma Correction Level","Green Gain Level","Green Offset Level","RedGain Level","Red Offset Level");
+	settingsTitlesN = lengthOf(settingsDSXTitles);
+	if (settingsN!=settingsTitlesN) exit("Mismatch between header names and header titles");
 	observationData = exifDSXs(settingsDSX);
 	for(i=0; i<settingsN; i++){
 		if (indexOf(settingsDSXTitles[i],"pm")>=0 || indexOf(settingsDSXTitles[i],"pixels")>=0) observationData[i] = parseInt(observationData[i]);
@@ -34,14 +37,23 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	/* Generate combination labels */
 	iWPx = indexOfArray(settingsDSX,"ImageWidth", -1);
 	if (iWPx<0) exit("ImageWidth not found");
-	iWPxPm = indexOfArray(settingsDSX,"ImageDataPerPixelX", -1);
-	if (iWPxPm<0) exit("ImageDataPerPixelX not found");
+	iWPxPm = indexOfArray(settingsDSX,"ColorDataPerPixelX", -1);
+	if (iWPxPm<0) exit("ColorDataPerPixelX not found");
+	iWPxPmOr = indexOfArray(settingsDSX,"ImageDataPerPixelX", -1);
+	if (iWPxPmOr<0) exit("ImageDataPerPixelX not found");
 	iHPx = indexOfArray(settingsDSX,"ImageHeight", -1);
 	if (iHPx<0) exit("ImageHeight not found");
-	iHPxPm = indexOfArray(settingsDSX,"ImageDataPerPixelY", -1);		
-	if (iHPxPm<0) exit("ImageDataPerPixelY not found");
+	iHPxPm = indexOfArray(settingsDSX,"ColorDataPerPixelY", -1);		
+	if (iHPxPm<0) exit("ColorDataPerPixelY not found");
+	iHPxPmOr = indexOfArray(settingsDSX,"ImageDataPerPixelY", -1);		
+	if (iHPxPmOr<0) exit("ImageDataPerPixelY not found");
 	pxWidthMicrons = parseInt(observationData[iWPxPm]) * pow(10,-6);
 	pxHeightMicrons = parseInt(observationData[iHPxPm]) * pow(10,-6);
+	pxWidthMicronsOr = parseInt(observationData[iWPxPmOr]) * pow(10,-6);
+	pxHeightMicronsOr = parseInt(observationData[iHPxPmOr]) * pow(10,-6);
+	resizeFactorFromOr = pxWidthMicronsOr/pxWidthMicrons;
+	if (resizeFactorFromOr!=1) imageResized = true;
+	else imageResized = false;
 	iObjMag = indexOfArray(settingsDSX,"ObjectiveLensMagnification", -1);
 	if (iObjMag<0) exit("ObjectiveLensMagnification not found");
 	iZoomMag = indexOfArray(settingsDSX,"ZoomMagnification", -1);
@@ -57,8 +69,10 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		run("Set Scale...", "distance=1 known=&distPerPixel pixel=1 unit=um");
 	}
 	/* End of scale adding */
-	iDIntensityPm = indexOfArray(settingsDSX,"ImageDataPerPixelZ",-1);
-	if (iDIntensityPm<0) exit("ImageDataPerPixelZ not found");
+	iDIntensityPm = indexOfArray(settingsDSX,"ColorDataPerPixelZ",-1);
+	if (iDIntensityPm<0) exit("ColorDataPerPixelZ not found");
+	iDIntensityPmOr = indexOfArray(settingsDSX,"ImageDataPerPixelZ",-1);
+	if (iDIntensityPmOr<0) exit("ImageDataPerPixelZ not found");
 	depthCal = parseFloat(observationData[iDIntensityPm]);
 	if (depthCal>=1){ 
 		depthCalMicrons = depthCal * pow(10,-6);
@@ -82,7 +96,11 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	observationData = Array.concat(imageTitle,imageSizePix,imageSizeMicrons,actualObjxZoomMag,depthCalMicrons,fullDepthRangeMicrons,observationData);
 	imageTitleTitle = "Image Title";
 	settingsDSXTitles = Array.concat(imageTitleTitle,imageSizePixTitle,imageSizeMicronsTitle,actualObjxZoomMagTitle,depthCalMicronsTitle,fullDepthRangeMicronsTitle,settingsDSXTitles);
-
+	if(imageResized){
+		observationData = Array.concat(observationData,resizeFactorFromOr);
+		settingsDSX = Array.concat(settingsDSX,resizeFactorFromOr);
+		settingsDSXTitles = Array.concat(settingsDSXTitles,"Image scaled from Original by");
+	}
 	/* Update settingsDSX array to match above to help call out default settings */
 	
 	settingsDSX = Array.concat("imageTitle","ImageSizePix","ImageSizeMicrons","actualObjxZoomMag","DepthCalMicrons","FullDepthRangeMicrons",settingsDSX);
@@ -145,16 +163,20 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 			Dialog.addNumber("Selection Bounds: Height = ", selEHeight);
 		}
 		Dialog.addNumber("Font size & color:", fontSize, 0, 3,"");
+		grayChoices = newArray("white", "black", "off-white", "off-black", "light_gray", "gray", "dark_gray");
+		colorChoicesStd = newArray("red", "green", "blue", "cyan", "magenta", "yellow", "pink", "orange", "violet");
+		colorChoicesMod = newArray("garnet", "gold", "aqua_modern", "blue_accent_modern", "blue_dark_modern", "blue_modern", "blue_honolulu", "gray_modern", "green_dark_modern", "green_modern", "green_modern_accent", "green_spring_accent", "orange_modern", "pink_modern", "purple_modern", "red_n_modern", "red_modern", "tan_modern", "violet_modern", "yellow_modern");
+		colorChoicesNeon = newArray("jazzberry_jam", "radical_red", "wild_watermelon", "outrageous_orange", "supernova_orange", "atomic_tangerine", "neon_carrot", "sunglow", "laser_lemon", "electric_lime", "screamin'_green", "magic_mint", "blizzard_blue", "dodger_blue", "shocking_pink", "razzle_dazzle_rose", "hot_magenta");
 		if (imageDepth==24)
-			colorChoice = newArray("white", "black", "off-white", "off-black", "light_gray", "gray", "dark_gray", "red", "cyan", "pink", "green", "blue", "yellow", "orange", "garnet", "gold", "aqua_modern", "blue_accent_modern", "blue_dark_modern", "blue_modern", "blue_honolulu", "gray_modern", "green_dark_modern", "green_modern", "orange_modern", "pink_modern", "purple_modern", "jazzberry_jam", "red_n_modern", "red_modern", "tan_modern", "violet_modern", "yellow_modern", "radical_red", "wild_watermelon", "outrageous_orange", "atomic_tangerine", "neon_carrot", "sunglow", "laser_lemon", "electric_lime", "screamin'_green", "magic_mint", "blizzard_blue", "shocking_pink", "razzle_dazzle_rose", "hot_magenta");
-		else colorChoice = newArray("white", "black", "light_gray", "gray", "dark_gray");
+			colorChoices = Array.concat(grayChoices, colorChoicesStd, colorChoicesMod, colorChoicesNeon);
+		else colorChoices = grayChoices;
 		Dialog.setInsets(-30, 60, 0);
-		Dialog.addChoice("Text color:", colorChoice, colorChoice[0]);
+		Dialog.addChoice("Text color:", colorChoices, colorChoices[0]);
 		fontStyleChoice = newArray("bold", "bold antialiased", "italic", "italic antialiased", "bold italic", "bold italic antialiased", "unstyled");
 		Dialog.addChoice("Font style:", fontStyleChoice, fontStyleChoice[1]);
 		fontNameChoice = getFontChoiceList();
 		Dialog.addChoice("Font name:", fontNameChoice, fontNameChoice[0]);
-		Dialog.addChoice("Outline color:", colorChoice, colorChoice[1]);
+		Dialog.addChoice("Outline color:", colorChoices, colorChoices[1]);
 		Dialog.addCheckbox("Do not use outlines and shadows \(if 'Under' is selected for location, no outlines or shadows will be used\)",false);
 
 		Dialog.addCheckbox("Tweak the Formatting?",false);
@@ -199,7 +221,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		Dialog.addNumber("Line Spacing", lineSpacing,0,3,"");
 		if(!notFancy) {
 			Dialog.addNumber("Outline stroke:", outlineStroke,0,3,"% of font size");
-			Dialog.addChoice("Outline (background) color:", colorChoice, colorChoice[1]);
+			Dialog.addChoice("Outline (background) color:", colorChoices, colorChoices[1]);
 			Dialog.addNumber("Shadow drop: ±", shadowDrop,0,3,"% of font size");
 			Dialog.addNumber("Shadow displacement right: ±", shadowDrop,0,3,"% of font size");
 			Dialog.addNumber("Shadow Gaussian blur:", floor(0.75 * shadowDrop),0,3,"% of font size");
@@ -405,9 +427,11 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 */
 	function arrayToString(array,delimiter){
 		/* 1st version April 2019 PJL
+			v190722 Modified to handle zero length array
 			v220307 += restored for else line*/
+		string = "";
 		for (i=0; i<array.length; i++){
-			if (i==0) string = "" + array[0];
+			if (i==0) string += array[0];
 			else  string += delimiter + array[i];
 		}
 		return string;
@@ -415,7 +439,8 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	function cleanLabel(string) {
 		/*  ImageJ macro default file encoding (ANSI or UTF-8) varies with platform so non-ASCII characters may vary: hence the need to always use fromCharCode instead of special characters.
 		v180611 added "degreeC"
-		v200604	fromCharCode(0x207B) removed as superscript hyphen not working reliably	*/
+		v200604	fromCharCode(0x207B) removed as superscript hyphen not working reliably
+		v220630 added degrees v220812 Changed Ångström unit code */
 		string= replace(string, "\\^2", fromCharCode(178)); /* superscript 2 */
 		string= replace(string, "\\^3", fromCharCode(179)); /* superscript 3 UTF-16 (decimal) */
 		string= replace(string, "\\^-"+fromCharCode(185), "-" + fromCharCode(185)); /* superscript -1 */
@@ -427,15 +452,16 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		string= replace(string, "\\^-^1", "-" + fromCharCode(185)); /* superscript -1 */
 		string= replace(string, "\\^-^2", "-" + fromCharCode(178)); /* superscript -2 */
 		string= replace(string, "(?<![A-Za-z0-9])u(?=m)", fromCharCode(181)); /* micron units */
-		string= replace(string, "\\b[aA]ngstrom\\b", fromCharCode(197)); /* Ångström unit symbol */
+		string= replace(string, "\\b[aA]ngstrom\\b", fromCharCode(0x212B)); /* Ångström unit symbol */
 		string= replace(string, "  ", " "); /* Replace double spaces with single spaces */
 		string= replace(string, "_", " "); /* Replace underlines with space as thin spaces (fromCharCode(0x2009)) not working reliably  */
 		string= replace(string, "px", "pixels"); /* Expand pixel abbreviation */
 		string= replace(string, "degreeC", fromCharCode(0x00B0) + "C"); /* Degree symbol for dialog boxes */
-		string = replace(string, " " + fromCharCode(0x00B0), fromCharCode(0x2009) + fromCharCode(0x00B0)); /* Replace normal space before degree symbol with thin space */
-		string= replace(string, " °", fromCharCode(0x2009) + fromCharCode(0x00B0)); /* Replace normal space before degree symbol with thin space */
+		// string = replace(string, " " + fromCharCode(0x00B0), fromCharCode(0x2009) + fromCharCode(0x00B0)); /* Replace normal space before degree symbol with thin space */
+		// string= replace(string, " °", fromCharCode(0x2009) + fromCharCode(0x00B0)); /* Replace normal space before degree symbol with thin space */
 		string= replace(string, "sigma", fromCharCode(0x03C3)); /* sigma for tight spaces */
-		string= replace(string, "±", fromCharCode(0x00B1)); /* plus or minus */
+		string= replace(string, "plusminus", fromCharCode(0x00B1)); /* plus or minus */
+		string= replace(string, "degrees", fromCharCode(0x00B0)); /* plus or minus */
 		return string;
 	}
 	function closeImageByTitle(windowTitle) {  /* Cannot be used with tables */
@@ -574,8 +600,8 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		/* v180828 added Fluorescent Colors
 		   v181017-8 added off-white and off-black for use in gif transparency and also added safe exit if no color match found
 		   v191211 added Cyan
-		   v211022 all names lower-case, all spaces to underscores v220225 Added more hash value comments as a reference
-		   REQUIRES restoreExit
+		   v211022 all names lower-case, all spaces to underscores v220225 Added more hash value comments as a reference v220706 restores missing magenta
+		   REQUIRES restoreExit function.  57 Colors
 		*/
 		if (colorName == "white") cA = newArray(255,255,255);
 		else if (colorName == "black") cA = newArray(0,0,0);
@@ -589,12 +615,14 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		else if (colorName == "gray") cA = newArray(127,127,127);
 		else if (colorName == "dark_gray") cA = newArray(51,51,51);
 		else if (colorName == "red") cA = newArray(255,0,0);
-		else if (colorName == "pink") cA = newArray(255, 192, 203);
 		else if (colorName == "green") cA = newArray(0,255,0); /* #00FF00 AKA Lime green */
 		else if (colorName == "blue") cA = newArray(0,0,255);
-		else if (colorName == "yellow") cA = newArray(255,255,0);
-		else if (colorName == "orange") cA = newArray(255, 165, 0);
 		else if (colorName == "cyan") cA = newArray(0, 255, 255);
+		else if (colorName == "yellow") cA = newArray(255,255,0);
+		else if (colorName == "magenta") cA = newArray(255,0,255); /* #FF00FF */
+		else if (colorName == "pink") cA = newArray(255, 192, 203);
+		else if (colorName == "violet") cA = newArray(127,0,255);
+		else if (colorName == "orange") cA = newArray(255, 165, 0);
 		else if (colorName == "garnet") cA = newArray(120,47,64);
 		else if (colorName == "gold") cA = newArray(206,184,136);
 		else if (colorName == "aqua_modern") cA = newArray(75,172,198); /* #4bacc6 AKA "Viking" aqua */
@@ -640,18 +668,20 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		colorArray = getColorArrayFromColorName(colorName);
 		setBackgroundColor(colorArray[0], colorArray[1], colorArray[2]);
 	}
-	function getHexColorFromRGBArray(colorNameString) {
-		colorArray = getColorArrayFromColorName(colorNameString);
-		 r = toHex(colorArray[0]); g = toHex(colorArray[1]); b = toHex(colorArray[2]);
-		 hexName= "#" + ""+pad(r) + ""+pad(g) + ""+pad(b);
-		 return hexName;
+	function setColorFromColorName(colorName) {
+		colorArray = getColorArrayFromColorName(colorName);
+		setColor(colorArray[0], colorArray[1], colorArray[2]);
 	}
+	function setForegroundColorFromName(colorName) {
+		colorArray = getColorArrayFromColorName(colorName);
+		setForegroundColor(colorArray[0], colorArray[1], colorArray[2]);
+	}
+	/* Hex conversion below adapted from T.Ferreira, 20010.01 https://imagej.net/doku.php?id=macro:rgbtohex */
 	function pad(n) {
 	  /* This version by Tiago Ferreira 6/6/2022 eliminates the toString macro function */
 	  if (lengthOf(n)==1) n= "0"+n; return n;
 	  if (lengthOf(""+n)==1) n= "0"+n; return n;
 	}
-	
 		
 	/*	End of Color Functions	*/
 	
@@ -678,15 +708,18 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		faveFontListCheck = Array.trim(faveFontListCheck, counter);
 		fontNameChoice = Array.concat(faveFontListCheck,fontNameChoice);
 		return fontNameChoice;
-	}	
-	function getSelectionFromMask(selection_Mask){
+	}
+	function getSelectionFromMask(sel_M){
+		/* v220920 only inverts if full width */
 		batchMode = is("Batch Mode"); /* Store batch status mode before toggling */
 		if (!batchMode) setBatchMode(true); /* Toggle batch mode on if previously off */
-		tempTitle = getTitle();
-		selectWindow(selection_Mask);
+		tempID = getImageID();
+		selectWindow(sel_M);
 		run("Create Selection"); /* Selection inverted perhaps because the mask has an inverted LUT? */
-		run("Make Inverse");
-		selectWindow(tempTitle);
+		getSelectionBounds(gSelX,gSelY,gWidth,gHeight);
+		if(gSelX==0 && gSelY==0 && gWidth==Image.width && gHeight==Image.height)	run("Make Inverse");
+		run("Select None");
+		selectImage(tempID);
 		run("Restore Selection");
 		if (!batchMode) setBatchMode(false); /* Return to original batch mode setting */
 	}
@@ -722,20 +755,37 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	}
 	function stripKnownExtensionFromString(string) {
 		/*	Note: Do not use on path as it may change the directory names
+		v210924: Tries to make sure string stays as string
+		v211014: Adds some additional cleanup
+		v211025: fixes multiple knowns issue
+		v211101: Added ".Ext_" removal
+		v211104: Restricts cleanup to end of string to reduce risk of corrupting path
 		v211112: Tries to fix trapped extension before channel listing. Adds xlsx extension.
+		v220615: Tries to fix the fix for the trapped extensions ...
 		*/
 		string = "" + string;
-		if (lastIndexOf(string, ".")!=-1) {
+		if (lastIndexOf(string, ".")>0 || lastIndexOf(string, "_lzw")>0) {
 			knownExt = newArray("dsx", "DSX", "tif", "tiff", "TIF", "TIFF", "png", "PNG", "GIF", "gif", "jpg", "JPG", "jpeg", "JPEG", "jp2", "JP2", "txt", "TXT", "csv", "CSV","xlsx","XLSX","_"," ");
+			kEL = lengthOf(knownExt);
 			chanLabels = newArray("\(red\)","\(green\)","\(blue\)");
-			for (i=0; i<knownExt.length; i++) {
-				for (j=0; j<3; j++){
+			unwantedSuffixes = newArray("_lzw"," ","  ", "__","--","_","-");
+			uSL = lengthOf(unwantedSuffixes);
+			for (i=0; i<kEL; i++) {
+				for (j=0; j<3; j++){ /* Looking for channel-label-trapped extensions */
 					ichanLabels = lastIndexOf(string, chanLabels[j]);
-					index = lastIndexOf(string, "." + knownExt[i]);
-					if (ichanLabels>index && index>0) string = "" + substring(string, 0, index) + "_" + chanLabels[j];
+					iExt = lastIndexOf(string, "." + knownExt[i]);
+					if(ichanLabels>0 && iExt>(ichanLabels+lengthOf(chanLabels[j]))){
+						iExt = lastIndexOf(string, "." + knownExt[i]);
+						if (ichanLabels>iExt && iExt>0) string = "" + substring(string, 0, iExt) + "_" + chanLabels[j];
+						ichanLabels = lastIndexOf(string, chanLabels[j]);
+						for (k=0; k<uSL; k++){
+							iExt = lastIndexOf(string, unwantedSuffixes[k]);  /* common ASC suffix */
+							if (ichanLabels>iExt && iExt>0) string = "" + substring(string, 0, iExt) + "_" + chanLabels[j];
+						}
+					}
 				}
-				index = lastIndexOf(string, "." + knownExt[i]);
-				if (index>=(lengthOf(string)-(lengthOf(knownExt[i])+1)) && index>0) string = "" + substring(string, 0, index);
+				iExt = lastIndexOf(string, "." + knownExt[i]);
+				if (iExt>=(lengthOf(string)-(lengthOf(knownExt[i])+1)) && iExt>0) string = "" + substring(string, 0, iExt);
 			}
 		}
 		unwantedSuffixes = newArray("_lzw"," ","  ", "__","--","_","-");
@@ -751,21 +801,23 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	+ v220126 added getInfo("micrometer.abbreviation").
 	+ v220128 add loops that allow removal of multiple duplication.
 	+ v220131 fixed so that suffix cleanup works even if extensions are included.
+	+ v220616 Minor index range fix that does not seem to have an impact if macro is working as planned. v220715 added 8-bit to unwanted dupes. v220812 minor changes to micron and Ångström handling
 	*/
 		/* Remove bad characters */
 		string= replace(string, fromCharCode(178), "\\^2"); /* superscript 2 */
 		string= replace(string, fromCharCode(179), "\\^3"); /* superscript 3 UTF-16 (decimal) */
 		string= replace(string, fromCharCode(0xFE63) + fromCharCode(185), "\\^-1"); /* Small hyphen substituted for superscript minus as 0x207B does not display in table */
 		string= replace(string, fromCharCode(0xFE63) + fromCharCode(178), "\\^-2"); /* Small hyphen substituted for superscript minus as 0x207B does not display in table */
-		string= replace(string, fromCharCode(181), "u"); /* micron units */
+		string= replace(string, fromCharCode(181)+"m", "um"); /* micron units */
 		string= replace(string, getInfo("micrometer.abbreviation"), "um"); /* micron units */
 		string= replace(string, fromCharCode(197), "Angstrom"); /* Ångström unit symbol */
+		string= replace(string, fromCharCode(0x212B), "Angstrom"); /* the other Ångström unit symbol */
 		string= replace(string, fromCharCode(0x2009) + fromCharCode(0x00B0), "deg"); /* replace thin spaces degrees combination */
 		string= replace(string, fromCharCode(0x2009), "_"); /* Replace thin spaces  */
 		string= replace(string, "%", "pc"); /* % causes issues with html listing */
 		string= replace(string, " ", "_"); /* Replace spaces - these can be a problem with image combination */
 		/* Remove duplicate strings */
-		unwantedDupes = newArray("8bit","lzw");
+		unwantedDupes = newArray("8bit","8-bit","lzw");
 		for (i=0; i<lengthOf(unwantedDupes); i++){
 			iLast = lastIndexOf(string,unwantedDupes[i]);
 			iFirst = indexOf(string,unwantedDupes[i]);
@@ -787,7 +839,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		unwantedSuffixes = newArray(" ","_","-","\\+"); /* things you don't wasn't to end a filename with */
 		extStart = lastIndexOf(string,".");
 		sL = lengthOf(string);
-		if (sL-extStart<=4) extIncl = true;
+		if (sL-extStart<=4 && extStart>0) extIncl = true;
 		else extIncl = false;
 		if (extIncl){
 			preString = substring(string,0,extStart);
@@ -799,7 +851,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		}
 		for (i=0; i<lengthOf(unwantedSuffixes); i++){
 			sL = lengthOf(preString);
-			if (endsWith(preString,unwantedSuffixes[i])) { 
+			if (endsWith(preString,unwantedSuffixes[i])) {
 				preString = substring(preString,0,sL-lengthOf(unwantedSuffixes[i])); /* cleanup previous suffix */
 				i=-1; /* check one more time */
 			}
@@ -809,4 +861,3 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		/* End of suffix cleanup */
 		return string;
 	}
-}
