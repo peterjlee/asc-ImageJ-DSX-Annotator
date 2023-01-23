@@ -5,17 +5,25 @@
 	v220301: 1st working version
 	v220304: Added option to put annotation bar under image SEM-style.
 	v220307: Saved preferences added. v220307-f1 restored saveSettings f3: updated pad function f4: updated functions 230111
-	v230112: Now works with montages generated and resized by DSX software.
+	v230112: Now works with montages generated and resized by DSX software. f1: changed exifDSXs function to assume the metaData has been imported already by ImageJ
+	v230120b-v230123: Optimized for much faster imageJ info import. Better hanlding of DSX image that has been cropped after opening.
  */
 macro "Add Multiple Lines of Metadata to DSX Image" {
-	macroL = "DSX_Annotator_v230112.ijm";
-	saveSettings; /* for restoreExit */	
+	macroL = "DSX_Annotator_v230123.ijm";
+	saveSettings; /* for restoreExit */
+	if (nImages==0) exit("sorry, this macro only works on open images");
 	imageTitle = getTitle();
+	um = getInfo("micrometer.abbreviation");
 	if (!endsWith(toLowerCase(imageTitle), '.dsx'))
-		showMessageWithCancel("Title does not end with \"DSX\"", "A DSX image is required, do you want to continue?" + t + " ?");
+		showMessageWithCancel("Title does not end with \"DSX\"", "A DSX image is required, do you want to continue?" + imageTitle + " ?");
 	// Checks to see if a Ramp legend rather than the image has been selected by accident
-	if (matches(imageTitle, ".*Ramp.*")==1) showMessageWithCancel("Title contains \"Ramp\"", "Do you want to label" + t + " ?");
+	if (matches(imageTitle, ".*Ramp.*")==1) showMessageWithCancel("Title contains \"Ramp\"", "Do you want to label" + imageTitle + " ?");
 	/* Settings preferences set up */
+	imageCWidth = getWidth(); /* note: this is changed from imageWidth because of DSX info name clash */
+	imageCHeight = getHeight(); /* note: this is changed from imageHeight because of DSX info name clash */
+	imageDims = imageCHeight + imageCWidth;
+	imageDepth = bitDepth();
+	id = getImageID();
 	userPath = getInfo("user.dir");
 	prefsDelimiter = "|";
 	prefsNameKey = "ascDSXAnnotatorPrefs.";
@@ -34,82 +42,157 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		if (indexOf(settingsDSXTitles[i],"pm")>=0 || indexOf(settingsDSXTitles[i],"pixels")>=0) observationData[i] = parseInt(observationData[i]);
 		else if (indexOf(settingsDSXTitles[i],"Zoom")>=0 || indexOf(settingsDSXTitles[i],"pixels")>=0) observationData[i] = d2s(observationData[i],3);
 	}
+	if (settingsN!=observationData.length) exit ("settings array, observation array length mismatch");
+	filtObs = newArray();
+	filtSett = newArray();
+	filtSettTitles = newArray();
+	for(i=0,j=0; i<observationData.length; i++){
+		oD = observationData[i];
+		if(!endsWith(oD,"not found") && oD!=NaN) {
+			filtObs[j] = observationData[i];
+			filtSett[j] = settingsDSX[i];
+			filtSettTitles[j] = settingsDSXTitles[i];
+			j++;
+		}
+	}
+	if (filtObs.length!=settingsN){
+			observationData = filtObs;
+			settingsDSX = filtSett;
+			settingsDSXTitles = filtSettTitles;
+	}
 	/* Generate combination labels */
 	iWPx = indexOfArray(settingsDSX,"ImageWidth", -1);
-	if (iWPx<0) exit("ImageWidth not found");
+	if (iWPx>=0) imageWidth = parseInt(observationData[iWPx]);
+	cropped = false;
+	if(imageCWidth!=imageWidth){
+		cropped = true;
+		observationData = Array.concat(imageCWidth,observationData);
+		settingsDSX = Array.concat("imageCWidth",settingsDSX);		
+		if(imageCWidth<imageWidth) settingsDSXTitles = Array.concat("Image cropped to width",settingsDSXTitles);
+		else settingsDSXTitles = Array.concat("Image expanded to width",settingsDSXTitles);
+	}
+	if (iWPx<0) imageWidth = imageCWidth;
 	iWPxPm = indexOfArray(settingsDSX,"ColorDataPerPixelX", -1);
-	if (iWPxPm<0) exit("ColorDataPerPixelX not found");
+	if (iWPxPm>=0) pxWidthMicrons = parseInt(observationData[iWPxPm]) * 10E-7;
 	iWPxPmOr = indexOfArray(settingsDSX,"ImageDataPerPixelX", -1);
-	if (iWPxPmOr<0) exit("ImageDataPerPixelX not found");
+	if (iWPxPmOr>=0) pxWidthMicronsOr = parseInt(observationData[iWPxPmOr]) * 10E-7;
 	iHPx = indexOfArray(settingsDSX,"ImageHeight", -1);
-	if (iHPx<0) exit("ImageHeight not found");
+	if (iHPx>=0) imageHeight = maxOf(parseInt(observationData[iHPx]),getHeight());
+	if(imageCHeight!=imageHeight){
+		cropped = true;
+		observationData = Array.concat(imageCHeight,observationData);
+		settingsDSX = Array.concat("imageCHeight",settingsDSX);		
+		if(imageCHeight<imageHeight) settingsDSXTitles = Array.concat("Image cropped to Height",settingsDSXTitles);
+		else settingsDSXTitles = Array.concat("Image expanded to Height",settingsDSXTitles);
+	}
+	if (cropped==true){
+		newCrop = "" + imageCWidth + " " + fromCharCode(0x00D7) + " " + imageCHeight;
+		observationData = Array.concat(newCrop,observationData);
+		settingsDSX = Array.concat("newCrop",settingsDSX);		
+		if((imageCHeight+imageCWidth)<(imageHeight+imageWidth)) settingsDSXTitles = Array.concat("Image cropped to",settingsDSXTitles);
+		else settingsDSXTitles = Array.concat("Image expanded to",settingsDSXTitles);
+	}
+	if (iWPx<0) imageHeight = imageCHeight;
 	iHPxPm = indexOfArray(settingsDSX,"ColorDataPerPixelY", -1);		
-	if (iHPxPm<0) exit("ColorDataPerPixelY not found");
+	if (iHPxPm>=0) pxHeightMicrons = parseInt(observationData[iHPxPm]) * 10E-7;
 	iHPxPmOr = indexOfArray(settingsDSX,"ImageDataPerPixelY", -1);		
-	if (iHPxPmOr<0) exit("ImageDataPerPixelY not found");
-	pxWidthMicrons = parseInt(observationData[iWPxPm]) * pow(10,-6);
-	pxHeightMicrons = parseInt(observationData[iHPxPm]) * pow(10,-6);
-	pxWidthMicronsOr = parseInt(observationData[iWPxPmOr]) * pow(10,-6);
-	pxHeightMicronsOr = parseInt(observationData[iHPxPmOr]) * pow(10,-6);
-	resizeFactorFromOr = pxWidthMicronsOr/pxWidthMicrons;
-	if (resizeFactorFromOr!=1) imageResized = true;
-	else imageResized = false;
+	if (iHPxPmOr>=0){
+		pxHeightMicronsOr = parseInt(observationData[iHPxPmOr]) * 10E-7;
+		observationData = Array.concat(pxHeightMicronsOr,observationData);
+		settingsDSXTitles = Array.concat("Original pixel height \("+um+"\)",settingsDSXTitles);
+		settingsDSX = Array.concat("pxHeightMicronsOr",settingsDSX);
+		if (iWPxPm>=0){
+			resizeFactorFromOr = pxWidthMicronsOr/pxWidthMicrons;
+			observationData = Array.concat(pxHeightMicrons,observationData);
+			settingsDSXTitles = Array.concat("Image pixel height \("+um+"\)",settingsDSXTitles);
+			settingsDSX = Array.concat("pxHeightMicrons",settingsDSX);
+			if (resizeFactorFromOr!=1){
+				observationData = Array.concat(resizeFactorFromOr,observationData);
+				settingsDSXTitles = Array.concat("Image scaled from Original by",settingsDSXTitles);
+				settingsDSX = Array.concat("resizeFactorFromOr",settingsDSX);
+			}
+		}
+	}
 	iObjMag = indexOfArray(settingsDSX,"ObjectiveLensMagnification", -1);
-	if (iObjMag<0) exit("ObjectiveLensMagnification not found");
 	iZoomMag = indexOfArray(settingsDSX,"ZoomMagnification", -1);
-	if (iZoomMag<0) exit("ZoomMagnification not found");
 	iTrueObjZoomF =  indexOfArray(settingsDSX,"ActualMagnificationFor1xZoom", -1);
-	if (iZoomMag<0) exit("ActualMagnificationFor1xZoom not found");
-	actualObjxZoomMag = d2s(parseFloat(observationData[iObjMag]) * parseFloat(observationData[iZoomMag]) * parseFloat(observationData[iTrueObjZoomF]),4);
-	actualObjxZoomMagTitle = "Actual Objective " + fromCharCode(0x00D7) + " Zoom Magnification";
-	/* Take the opportunity to embed the scale if it has not been done yet */
-	getPixelSize(unit, pixelWidth, pixelHeight);
-	if (pixelWidth!=pixelHeight || pixelWidth==1 || unit=="" || unit=="inches" || unit=="pixels"){
-		distPerPixel = (pxWidthMicrons + pxHeightMicrons)/2;
-		run("Set Scale...", "distance=1 known=&distPerPixel pixel=1 unit=um");
+	if (iObjMag>=0 && iZoomMag>=0 && iTrueObjZoomF>=0){
+		actualObjxZoomMag = d2s(parseFloat(observationData[iObjMag]) * parseFloat(observationData[iZoomMag]) * parseFloat(observationData[iTrueObjZoomF]),4);
+		actualObjxZoomMagTitle = "Actual Objective " + fromCharCode(0x00D7) + " Zoom Magnification";
+		observationData = Array.concat(actualObjxZoomMag,observationData);
+		settingsDSXTitles = Array.concat(actualObjxZoomMagTitle,settingsDSXTitles);
+		settingsDSX = Array.concat("actualObjxZoomMag",settingsDSX);
 	}
-	/* End of scale adding */
 	iDIntensityPm = indexOfArray(settingsDSX,"ColorDataPerPixelZ",-1);
-	if (iDIntensityPm<0) exit("ColorDataPerPixelZ not found");
+	if (iDIntensityPm>=0){
+		depthCal = parseFloat(observationData[iDIntensityPm]);
+		if (depthCal>1){ 
+			depthCalMicrons = depthCal * pow(10,-6);
+			fullDepthRangeMicrons = d2s(256 * 256 * depthCalMicrons,3); /* depth map is 16-bit */
+			observationData = Array.concat(depthCalMicrons,fullDepthRangeMicrons,observationData);
+			depthCalMicronsTitle = "Height Map Calibration \(" + um + "\/intensity Level\)";
+			fullDepthRangeMicronsTitle = "Full 16-bit Height Map Range \(" + um + "\)";
+			settingsDSXTitles = Array.concat(depthCalMicronsTitle,fullDepthRangeMicronsTitle,settingsDSXTitles);
+			settingsDSX = Array.concat("DepthCalMicrons","FullDepthRangeMicrons",settingsDSX);
+		}
+	} 
 	iDIntensityPmOr = indexOfArray(settingsDSX,"ImageDataPerPixelZ",-1);
-	if (iDIntensityPmOr<0) exit("ImageDataPerPixelZ not found");
-	depthCal = parseFloat(observationData[iDIntensityPm]);
-	if (depthCal>=1){ 
-		depthCalMicrons = depthCal * pow(10,-6);
-		fullDepthRangeMicrons = d2s(256 * 256 * depthCalMicrons,3); /* depth map is 16-bit */
+	if (iDIntensityPmOr>=0){
+		depthCalOr = parseFloat(observationData[iDIntensityPmOr]);
+		if (depthCalOr>1){ 
+			depthCalMicronsOr = depthCalOr * pow(10,-6);
+			fullDepthRangeMicronsOr = d2s(256 * 256 * depthCalMicronsOr,3); /* depth map is 16-bit */
+			observationData = Array.concat(depthCalMicronsOr,fullDepthRangeMicronsOr,observationData);
+			depthCalMicronsTitleOr = "Original Height Map Calibration \(" + um + "\/intensity Level\)";
+			fullDepthRangeMicronsTitleOr = "Original Full 16-bit Height Map Range \(" + um + "\)";
+			settingsDSXTitles = Array.concat(depthCalMicronsTitleOr,fullDepthRangeMicronsTitleOr,settingsDSXTitles);
+			settingsDSX = Array.concat("DepthCalMicronsOr","FullDepthRangeMicronsOr",settingsDSX);
+		}
 	}
-	else {
-		depthCalMicrons = "No Extended Depth";
-		fullDepthRangeMicrons = "No Extended Depth";
-	}	
-	depthCalMicronsTitle = "Height Map calibration \(" + getInfo("micrometer.abbreviation") + "\/intensity Level\)";
-	fullDepthRangeMicronsTitle = "Full 16-bit Height Map Range \(" + getInfo("micrometer.abbreviation") + "\)";
-	imageWPx = observationData[iWPx];
-	imageWMicrons = parseInt(imageWPx) * pxWidthMicrons;
-	imageHPx = observationData[iHPx];
-	imageHMicrons = parseInt(imageHPx) * pxHeightMicrons;
-	imageSizePix = d2s(imageWPx,0) + " " + fromCharCode(0x00D7) + " " + d2s(imageHPx,0);
-	imageSizePixTitle = "Image size \(pixels\)";
-	imageSizeMicrons = d2s(imageWMicrons,1) + " " + fromCharCode(0x00D7) + " " + d2s(imageHMicrons,1);
-	imageSizeMicronsTitle = "Image size \(" + getInfo("micrometer.abbreviation") + "\)";
+	if(iWPx>=0 && iWPxPm>=0 && iHPx>=0 && iHPxPm>=0){
+		imageWMicrons = imageWidth * pxWidthMicrons;
+		imageSizePix = d2s(imageWidth,0) + " " + fromCharCode(0x00D7) + " " + d2s(imageHeight,0);
+		imageHMicrons = parseInt(imageHeight) * pxHeightMicrons;
+		imageSizeMicrons = d2s(imageWMicrons,1) + " " + fromCharCode(0x00D7) + " " + d2s(imageHMicrons,1);
+		if(!cropped){
+			imageSizePixTitle = "Image size \(pixels\)";
+			observationData = Array.concat(imageSizePix,imageSizeMicrons,observationData);
+			imageSizeMicronsTitle = "Image size \(" + um + "\)";
+			settingsDSXTitles = Array.concat(imageSizePixTitle,imageSizeMicronsTitle,settingsDSXTitles);
+			settingsDSX = Array.concat("ImageSizePix","ImageSizeMicrons",settingsDSX);
+		}
+		else{
+			imageCWMicrons = imageCWidth * pxWidthMicrons;
+			imageCHMicrons = imageCHeight * pxHeightMicrons;
+			imageCSizeMicrons = d2s(imageCWMicrons,1) + " " + fromCharCode(0x00D7) + " " + d2s(imageCHMicrons,1);
+			observationData = Array.concat(imageCSizeMicrons,observationData);
+			imageCSizeMicronsTitle = "Image size after crop \(" + um + "\)";
+			settingsDSXTitles = Array.concat(imageCSizeMicronsTitle,settingsDSXTitles);
+			settingsDSX = Array.concat("ImageCSizeMicrons",settingsDSX);
+		}
+	}
+	else if(iWPxOr>=0 && iWPxPmOr>=0 && iHPxOr>=0 && iHPxPmOr>=0){
+		imageWMicronsOr = parseInt(imageWidth) * pxWidthMicrons;
+		imageSizePixOr = d2s(imageWidth,0) + " " + fromCharCode(0x00D7) + " " + d2s(imageHeight,0);
+		imageSizePixTitleOr = "Original Image Size \(pixels\)";
+		imageSizeMicronsTitleOr = "Image size \(" + um + "\)";
+		imageHMicronsOr = parseInt(imageHeight) * pxHeightMicronsOr;
+		imageSizeMicronsOr = d2s(imageWMicronsOr,1) + " " + fromCharCode(0x00D7) + " " + d2s(imageHMicronsOr,1);
+		observationData = Array.concat(imageSizePixOr,imageSizeMicronsOr,observationData);
+		settingsDSXTitles = Array.concat(imageSizePixTitleOr,imageSizeMicronsTitleOr,settingsDSXTitles);
+		settingsDSX = Array.concat("OriginalImageSizePix","OriginalImageSizeMicrons",settingsDSX);
+	}
 	/* End of combination settings */
-	observationData = Array.concat(imageTitle,imageSizePix,imageSizeMicrons,actualObjxZoomMag,depthCalMicrons,fullDepthRangeMicrons,observationData);
+	observationData = Array.concat(imageTitle,observationData);
 	imageTitleTitle = "Image Title";
-	settingsDSXTitles = Array.concat(imageTitleTitle,imageSizePixTitle,imageSizeMicronsTitle,actualObjxZoomMagTitle,depthCalMicronsTitle,fullDepthRangeMicronsTitle,settingsDSXTitles);
-	if(imageResized){
-		observationData = Array.concat(observationData,resizeFactorFromOr);
-		settingsDSX = Array.concat(settingsDSX,resizeFactorFromOr);
-		settingsDSXTitles = Array.concat(settingsDSXTitles,"Image scaled from Original by");
-	}
+	settingsDSXTitles = Array.concat(imageTitleTitle,settingsDSXTitles);
 	/* Update settingsDSX array to match above to help call out default settings */
-	
-	settingsDSX = Array.concat("imageTitle","ImageSizePix","ImageSizeMicrons","actualObjxZoomMag","DepthCalMicrons","FullDepthRangeMicrons",settingsDSX);
+	settingsDSX = Array.concat("imageTitle",settingsDSX);
 	dataN = lengthOf(observationData);
 	titlesN = lengthOf(settingsDSXTitles);
 	if (dataN!=titlesN) exit("Number of titles \("+titlesN+"\) does not equal number of settings \("+settingsN+"\)");
 	observationLabels = newArray(dataN);
 	for(i=0; i<dataN; i++) observationLabels[i] = settingsDSXTitles[i] + ": " + observationData[i];
-	// for(i=0; i<dataN; i++) print(observationLabels[i]);
 	/* End of DSX parameter import */
 	defaultLabelChecks = newArray(dataN);
 	Array.fill(defaultLabelChecks,false);
@@ -121,13 +204,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		getSelectionBounds(selEX, selEY, selEWidth, selEHeight);
 	}
 	else selectionExists = false;
-	imageWidth = getWidth();
-	imageHeight = getHeight();
-	imageDims = imageHeight + imageWidth;
-	imageDepth = bitDepth();
-	id = getImageID();
-	fontSize = round(imageDims/140); /* default font size is small for this variant */
-	if (fontSize < 10) fontSize = 10; /* set minimum default font size as 12 */
+	fontSize = maxOf(12,round(imageDims/140)); /* default font size is small for this variant */
 	lineSpacing = 1.2;
 	outlineStroke = 9; /* default outline stroke: % of font size */
 	shadowDrop = 8;  /* default outer shadow drop: % of font size */
@@ -139,10 +216,13 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	innerShadowDisp = dIShO;
 	innerShadowBlur = floor(dIShO/2);
 	innerShadowDarkness = 20;
-	selOffsetX = round(1 + imageWidth/150); /* default offset of label from edge */
-	selOffsetY = round(1 + imageHeight/150); /* default offset of label from edge */
+	selOffsetX = round(1 + imageCWidth/150); /* default offset of label from edge */
+	selOffsetY = round(1 + imageCHeight/150); /* default offset of label from edge */
+	if (iWPxPm>=0) distPerPixel = (pxWidthMicrons + pxHeightMicrons)/2; /* Defaults to DSX output image, which is automatically resized if beyond a certain size */
+	else if (iWPxPmOr>=0) distPerPixel = (pxWidthMicronsOr + pxHeightMicronsOr)/2;
 	/* Then Dialog . . . */
 	Dialog.create("Basic Label Options: " + macroL);
+		if (iWPxPm>=0 || iWPxPmOr>=0) Dialog.addCheckbox("Apply scale of " + distPerPixel + " " + um + " per pixel to image",true);
 		Dialog.addString("Optional list title \((leave blank for none\)","",50);
 		Dialog.addMessage("Labels: ^2 & um etc. replaced by " + fromCharCode(178) + " & " + fromCharCode(181) + "m etc. If the units are in the parameter label, within \(...\) i.e. \(unit\) they will override this selection:");
 		Dialog.addCheckboxGroup(1+dataN/3,3,observationLabels,defaultLabelChecks);
@@ -178,10 +258,13 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		Dialog.addChoice("Font name:", fontNameChoice, fontNameChoice[0]);
 		Dialog.addChoice("Outline color:", colorChoices, colorChoices[1]);
 		Dialog.addCheckbox("Do not use outlines and shadows \(if 'Under' is selected for location, no outlines or shadows will be used\)",false);
-
 		Dialog.addCheckbox("Tweak the Formatting?",false);
+		Dialog.addCheckbox("Diagnostic output?",false);
 /*	*/
 	Dialog.show();
+		if (iWPxPm>=0 || iWPxPmOr>=0){
+			if (Dialog.getCheckbox()) run("Set Scale...", "distance=1 known=&distPerPixel pixel=1 unit=um");
+		}
 		optionalLabel = Dialog.getString();
 		chosenLabels = newArray();
 		chosenParameters = newArray();
@@ -209,7 +292,25 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		outlineColor = Dialog.getChoice();
 		notFancy = Dialog.getCheckbox(); 
 		tweakFormat = Dialog.getCheckbox();
+		diagnostics = Dialog.getCheckbox();
 /*	*/
+	if(diagnostics){
+		IJ.log("observationData array \("+observationData.length+" entries\):");
+		IJ.log("settingsDSXTitles array \("+settingsDSXTitles.length+" entries\):");
+		IJ.log("settingsDSX array \("+settingsDSX.length+" entries\):");
+		maxRows = maxOf(settingsDSX.length,maxOf(observationData.length,settingsDSXTitles.length));
+		IJ.log("settingsDSXTitles,     settingsDSX,     observationData\n=============================================");
+		for(i=0;i<maxRows;i++){
+			row = "";
+			if (i<settingsDSXTitles.length) row += "" + settingsDSXTitles[i] + ",     ";
+			else row += "settingsDSXTitles " + i + ": Missing,";
+			if (i<settingsDSX.length) row += "" + settingsDSX[i] + ",     ";
+			else row += "settingsDSX " + i + ": Missing,";
+			if (i<observationData.length) row += "" + observationData[i];
+			else row += "observationDatas " + i + ": Missing";
+			IJ.log(row);
+		}
+	}
 	if(startsWith(logOutput,"Just")) for (i=0; i<lengthOf(chosenLabels); i++) print(chosenLabels[i]);
 	if(startsWith(logOutput,"All")) for (i=0; i<lengthOf(observationLabels); i++) print(observationLabels[i]);
 	if(!startsWith(logOutput,"No")) print("------------\n");
@@ -280,7 +381,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 			labelLength = getStringWidth(chosenLabels[i]);
 			if (labelLength>longestStringWidth) longestStringWidth = labelLength;
 			if(textLocChoice=="under"){
-				if (lineStart + selOffsetX + labelLength + 4 < ((100-underClear)*imageWidth/100)){
+				if (lineStart + selOffsetX + labelLength + 4 < ((100-underClear)*imageCWidth/100)){
 					newLine += chosenLabels[i];
 					underLabels[j] = newLine;
 					newLine += "    ";
@@ -302,20 +403,20 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		selEX = selOffsetX;
 		selEY = selOffsetY;
 	} else if (textLocChoice == "Top Right") {
-		selEX = imageWidth - longestStringWidth - selOffsetX;
+		selEX = imageCWidth - longestStringWidth - selOffsetX;
 		selEY = selOffsetY;
 	} else if (textLocChoice == "Center") {
-		selEX = round((imageWidth - longestStringWidth)/2);
-		selEY = round((imageHeight - linesSpace)/2);
+		selEX = round((imageCWidth - longestStringWidth)/2);
+		selEY = round((imageCHeight - linesSpace)/2);
 	} else if (textLocChoice == "Bottom Left") {
 		selEX = selOffsetX;
-		selEY = imageHeight - (selOffsetY + linesSpace);
+		selEY = imageCHeight - (selOffsetY + linesSpace);
 	} else if (textLocChoice == "Under") {
 		selEX = selOffsetX;
-		selEY = imageHeight + selOffsetY +  fontSize + lineSpacing;	
+		selEY = imageCHeight + selOffsetY +  fontSize + lineSpacing;	
 	} else if (textLocChoice == "Bottom Right") {
-		selEX = imageWidth - longestStringWidth - selOffsetX;
-		selEY = imageHeight - (selOffsetY + linesSpace);
+		selEX = imageCWidth - longestStringWidth - selOffsetX;
+		selEY = imageCHeight - (selOffsetY + linesSpace);
 	} else if (textLocChoice == "Center of New Selection"){
 		setTool("rectangle");
 		if (is("Batch Mode")==true) setBatchMode(false); /* Does not accept interaction while batch mode is on */
@@ -335,7 +436,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		selEY += fontSize;
 	if (selEX<selOffsetX) selEX = selOffsetX;
 	endX = selEX + longestStringWidth;
-	if ((endX+selOffsetX)>imageWidth) selEX = imageWidth - longestStringWidth - selOffsetX;
+	if ((endX+selOffsetX)>imageCWidth) selEX = imageCWidth - longestStringWidth - selOffsetX;
 	textLabelX = selEX;
 	textLabelY = selEY;
 	setBatchMode(true);
@@ -344,16 +445,16 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	labeledImage = getTitle();
 	setFont(fontName,fontSize, fontStyle);
 	if(textLocChoice=="Under"){
-		newHeight = imageHeight + (2 * selOffsetY + (fontSize + lineSpacing) * (underLabelsN + 0.5));
+		newHeight = imageCHeight + (2 * selOffsetY + (fontSize + lineSpacing) * (underLabelsN + 0.5));
 		selColors = getColorArrayFromColorName(selColor);
 		Array.getStatistics(selColors,null,null,meanSelColInt,null);
 		if (meanSelColInt<128) run("Colors...", "background=white");
 		else run("Colors...", "background=black");
-		run("Canvas Size...", "width=[imageWidth] height=[newHeight] position=Top-Center");
+		run("Canvas Size...", "width=[imageCWidth] height=[newHeight] position=Top-Center");
 		run ("Colors...", "background=white");
 	}
 	if(!notFancy) {
-		newImage("label_mask", "8-bit black", imageWidth, imageHeight, 1);
+		newImage("label_mask", "8-bit black", imageCWidth, imageCHeight, 1);
 		roiManager("deselect");
 		run("Select None");
 		/* Draw summary over top of labels */
@@ -482,7 +583,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		v200706 changed image depth variable name.
 		*/
 		showStatus("Creating inner shadow for labels . . . ");
-		newImage("inner_shadow", "8-bit white", imageWidth, imageHeight, 1);
+		newImage("inner_shadow", "8-bit white", imageCWidth, imageCHeight, 1);
 		getSelectionFromMask("label_mask");
 		setBackgroundColor(0,0,0);
 		run("Clear Outside");
@@ -509,7 +610,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		because this version works with different bitDepths
 		v161104 */
 		showStatus("Creating drop shadow for labels . . . ");
-		newImage("shadow", "8-bit black", imageWidth, imageHeight, 1);
+		newImage("shadow", "8-bit black", imageCWidth, imageCHeight, 1);
 		getSelectionFromMask("label_mask");
 		getSelectionBounds(selMaskX, selMaskY, selMaskWidth, selMaskHeight);
 		setSelectionLocation(selMaskX+shadowDisp, selMaskY+shadowDrop);
@@ -536,67 +637,70 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	function exifDSXs(parameters) {
 	/* Returns requested parameter from DSX EXIF header	
 	ObsevationSettingInfo Only
-	v220228 1st working version
-	v220301 Index search strings now includes both open and close "<" to avoid ambiguity (ImageType). Now checks to see of "obsevation" typo has been fixed.
+	v220228: 1st working version
+	v220301: Index search strings now includes both open and close "<" to avoid ambiguity (ImageType). Now checks to see of "obsevation" typo has been fixed.
+	v230120: Assumes that imageJ will import DSX metadata into info header. 
 	*/
-	if (is("Batch Mode")){
-		batchOn = true;
-	}
-	else {
-		batchOn = false;
-		setBatchMode(true);
-	}
-	if (nImages==0) return "Error: no images open";
-	selectImage(getImageID);
-	title = getTitle();
-	if (!endsWith(toLowerCase(title), '.dsx'))
-		exit("The active image is not a DSX");
-	run("Exif Data...");
-	list = getList("window.titles");
-	exifListed = false;
-	for (i=0; i<list.length; i++){
-		if (startsWith(list[i],"EXIF Metadata for ")){
-			exifWindow = list[i];
-			if (exifListed){
-				print("Multiple EXIF windows are open, the last one will be used and then closed");
-				exifListed = true;
+		if (is("Batch Mode")) batchOn = true;
+		else {
+			batchOn = false;
+			setBatchMode(true);
+		}
+		if (nImages==0) return "Error: no images open";
+		selectImage(getImageID);
+		title = getTitle();
+		if (!endsWith(toLowerCase(title), '.dsx')) exit("The active image is not a DSX");
+		fullEXIF = getMetadata("Info");
+		// observationData = exifDSXs(settingsDSX);
+		// startDSXinfo = indexOf(fullEXIF,"TiffTagDescData");
+		// endDSXinfo = lastIndexOf(fullEXIF,"TiffTagDescData");
+		// if (startDSXinfo>=0 && endDSXinfo>=0) fullEXIF = substring(metaData,startDSXinfo,endDSXinfo); /* probably not necessary but it could filter out some junk */
+		metaDatas = newArray();
+		observationSettings = "ObjectiveLensID ObjectiveLensType ObjectiveLensMagnification Telecentric ZoomMagnification OpiticalZoomMagnification DigitalZoomMagnification ObservationMethod TiltingFrameAngle StageAngle ApertureStop ApertureStopLevel ImagingAS FieldStop FieldStopLevel BFLight BFLightBrightnessLevel FiberLight FiberLightBrightnessLevel RingLightBlock DFLightBlock DFLightBrightnessLevel";
+		if(indexOf(fullEXIF,"<ObsevationSettingInfo>")>=0){
+			obsEXIF = fullEXIF.substring(fullEXIF.indexOf("<ObsevationSettingInfo>");
+			if(fullEXIF.indexOf("</ObsevationSettingInfo>")>=0) obsEXIF = fullEXIF.substring(0,fullEXIF.indexOf("</ObsevationSettingInfo>"));
+		} 
+		else if(indexOf(fullEXIF,"<ObservationSettingInfo>")>=0) obsEXIF = fullEXIF.substring(fullEXIF.indexOf("<ObservationSettingInfo>"),fullEXIF.indexOf("</ObservationSettingInfo>"); /* Future proof version for Olympus typo fix */
+		else if(indexOf(fullEXIF,"<TiffTagDescData xmlns")>=0){
+			obsEXIF = fullEXIF.substring(fullEXIF.indexOf("<TiffTagDescData xmlns"),fullEXIF.indexOf("</TiffTagDescData>"));
+			obsEXIF = obsEXIF.substring(obsEXIF.indexOf(">")+1);
+		}
+		else obsEXIF = fullEXIF;
+		for(i=0; i<parameters.length; i++){
+			parameter = parameters[i];
+			if(indexOf(observationSettings,parameter)<0){
+				index0 = fullEXIF.indexOf("<" + parameter + ">") + parameter.length + 1;
+				index1 = fullEXIF.indexOf("</" + parameter + ">");
+				if (index0<0 || index0<0  || index1<index0 ) 
+					metaDatas[i] = "Error: "+parameter+" not found";
+				else{
+					safeString = fullEXIF.substring(index0, index1+1);
+					safeString = safeString.replace(">","");
+					metaDatas[i] = safeString.replace("<","");
+				}
+			}
+			else {
+				index0 = obsEXIF.indexOf("<" + parameter + ">") + parameter.length + 1;
+				index1 = obsEXIF.indexOf("</" + parameter + ">");
+				if (index0<0 || index0<0 || index1<index0) 
+					metaDatas[i] = "Error: "+parameter+" not found";
+				else {
+					safeString = obsEXIF.substring(index0, index1 + 1);			
+					safeString = safeString.replace(">","");
+					metaDatas[i] = safeString.replace("<","");
+				}
 			}
 		}
+		if(!batchOn) setBatchMode("exit and display");
+		// print("Array.print\(metaDatas\)", "length of parameters:", lengthOf(parameters),"length of metaDatas:",lengthOf(metaDatas));
+		// Array.print(metaDatas);
+		return metaDatas;
 	}
-	selectWindow(exifWindow);
-	fullEXIF = getInfo();
-	metaDatas = newArray();
-	observationSettings = "ObjectiveLensID ObjectiveLensType ObjectiveLensMagnification Telecentric ZoomMagnification OpiticalZoomMagnification DigitalZoomMagnification ObservationMethod TiltingFrameAngle StageAngle ApertureStop ApertureStopLevel ImagingAS FieldStop FieldStopLevel BFLight BFLightBrightnessLevel FiberLight FiberLightBrightnessLevel RingLightBlock DFLightBlock DFLightBrightnessLevel";
-	if(indexOf(fullEXIF,"Obsevation")<0) exit("Obs'ev'ation typo has been fixed; please update exifDSXs function");
-	obsEXIF = substring(fullEXIF,indexOf(fullEXIF,"<ObsevationSettingInfo>"));
-	for(i=0; i<lengthOf(parameters); i++){
-		parameter = parameters[i];
-		if(indexOf(observationSettings,parameter)<0){
-			index0 = indexOf(fullEXIF, "<" + parameter + ">") + lengthOf(parameter) + 2;
-			index1 = indexOf(fullEXIF, "</" + parameter + ">")-1;
-			if (index0==-1 || index0==-1) 
-				metaDatas[i] = "Error: "+parameter+" for \"" + title + "\"";
-			else
-				metaDatas[i] = substring(fullEXIF, index0, index1+1);
-		}
-		else {
-			index0 = indexOf(obsEXIF, "<" + parameter + ">") + lengthOf(parameter) + 2;
-			index1 = indexOf(obsEXIF, "</" + parameter + ">")-1;
-			if (index0==-1 || index0==-1) 
-				metaDatas[i] = "Error: "+parameter+" for \"" + title + "\"";
-			else
-				metaDatas[i] = substring(obsEXIF, index0, index1 + 1);			
-		}
-	}
-	close(exifWindow);
-	if(!batchOn)	setBatchMode("exit and display");
-	// print("Array.print\(metaDatas\)", "length of parameters:", lengthOf(parameters),"length of metaDatas:",lengthOf(metaDatas));
-	// Array.print(metaDatas);
-	return metaDatas;
-	}
-	/*	Color Functions	*/
-	
-	function getColorArrayFromColorName(colorName) {
+	/*
+	Color Functions
+	*/
+		function getColorArrayFromColorName(colorName) {
 		/* v180828 added Fluorescent Colors
 		   v181017-8 added off-white and off-black for use in gif transparency and also added safe exit if no color match found
 		   v191211 added Cyan
@@ -681,6 +785,12 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	  /* This version by Tiago Ferreira 6/6/2022 eliminates the toString macro function */
 	  if (lengthOf(n)==1) n= "0"+n; return n;
 	  if (lengthOf(""+n)==1) n= "0"+n; return n;
+	}
+	function getHexColorFromRGBArray(colorNameString) {
+		colorArray = getColorArrayFromColorName(colorNameString);
+		 r = toHex(colorArray[0]); g = toHex(colorArray[1]); b = toHex(colorArray[2]);
+		 hexName= "#" + ""+pad(r) + ""+pad(g) + ""+pad(b);
+		 return hexName;
 	}
 		
 	/*	End of Color Functions	*/
