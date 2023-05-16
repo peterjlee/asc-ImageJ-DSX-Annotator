@@ -6,10 +6,12 @@
 	v220304: Added option to put annotation bar under image SEM-style.
 	v220307: Saved preferences added. v220307-f1 restored saveSettings f3: updated pad function f4: updated functions 230111
 	v230112: Now works with montages generated and resized by DSX software. f1: changed exifDSXs function to assume the metaData has been imported already by ImageJ
-	v230120b-v230123: Optimized for much faster imageJ info import. Better hanlding of DSX image that has been cropped after opening.
+	v230120b-v230123: Optimized for much faster imageJ info import. Better hanlding of DSX image that has been cropped after opening. f1: updated stripKnownExtensionFromString function
+	v230512: Switched to using exifReader plugin to get a more complete exif import.
+	v230513: Smarter about monochrome images. Adds transfer of metaData option.
  */
 macro "Add Multiple Lines of Metadata to DSX Image" {
-	macroL = "DSX_Annotator_v230123.ijm";
+	macroL = "DSX_Annotator_v230513.ijm";
 	saveSettings; /* for restoreExit */
 	if (nImages==0) exit("sorry, this macro only works on open images");
 	imageTitle = getTitle();
@@ -31,14 +33,93 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	if (prefsParameters!="None") defaultSettings = split(prefsParameters,prefsDelimiter);
 	else defaultSettings = newArray("ObservationMethod","ImageType","ImageSizePix","ImageSizeMicrons","ObjectiveLensType","ObjectiveLensMagnification","ZoomMagnification");
 	/* End preferences recall */
-	settingsDSX = newArray("ObservationMethod","ImageType","ObjectiveLensMagnification","ImageHeight","ImageWidth","ColorDataPerPixelX","ImageDataPerPixelX","ColorDataPerPixelY","ImageDataPerPixelY","ColorDataPerPixelZ","ImageDataPerPixelZ","ObjectiveLensType","ZoomMagnification","DigitalZoomMagnification","OpiticalZoomMagnification","ActualMagnificationFor1xZoom","FileVersion","ImageFlip","ImageRotation","ImageRotationAngle","AE","AELock","AEMode","AETargetValue","Binning","BinningLevel","ShadingCorrection","ImageAspectRatio","NoiseReduction","NoiseReductionLevel","BlurCorrection","BlurCorrectionValue","ContrastMode","SharpnessMode","FieldCurvatureCorrection","MicroscopeControllerVersion","StagePositionX","StagePositionY","ImagingAS","BFLight","BFLightBrightnessLevel","RingLightBlock","DFLightBlock","DFLightAngle","DFLightMode","BackLight","BackLightBrightnessLevel","DICShearingLevel","AnalyzerShearingLevel","PBF","CameraName","BlueGainLevel","BlueOffsetLevel","GammaCorrectionLevel","GreenGainLevel","GreenOffsetLevel","RedGainLevel","RedOffsetLevel");
-	settingsN = lengthOf(settingsDSX);
+	settingsDSX = newArray("ObservationMethod","ImageType","ObjectiveLensMagnification","ImageHeight","ImageWidth","ColorDataPerPixelX","ImageDataPerPixelX","ColorDataPerPixelY","ImageDataPerPixelY","ColorDataPerPixelZ","ImageDataPerPixelZ","ObjectiveLensType","ZoomMagnification","DigitalZoomMagnification","OpiticalZoomMagnification","ActualMagnificationFor1xZoom","ImageFlip","ShadingCorrection","ImageAspectRatio","NoiseReduction","NoiseReductionLevel","BlurCorrection","BlurCorrectionValue","ContrastMode","SharpnessMode","FieldCurvatureCorrection","StagePositionX","StagePositionY","ImagingAS","AnalyzerShearingLevel","PBF","CameraName","GammaCorrectionLevel");
+	settingsColor = newArray("BlueGainLevel","BlueOffsetLevel","GreenGainLevel","GreenOffsetLevel","RedGainLevel","RedOffsetLevel");
+	settingsColorTitles = newArray("Blue Gain Level","Blue Offset Level","Green Gain Level","Green Offset Level","RedGain Level","Red Offset Level");
+	settingsDontCare = newArray("FileVersion","MicroscopeControllerVersion"); settingsDontCareTitles = newArray("File Version","Microscope Controller Version");
+	settingsDSXBF = newArray("BFLight","BFLightBrightnessLevel"); settingsDSXBFTitles = newArray("BF Light","BF Light Brightness Level");
+	settingsDSXDF = newArray("DFLightBlock","DFLightAngle","DFLightMode"); settingsDSXDFTitles = newArray("DF Light Block","DF Light Angle","DF Light Mode");
+	settingsDSXAE = newArray("AE","AELock","AEMode","AETargetValue"); settingsDSXAETitles = newArray("Auto Exposure","AE Lock","AE Mode","AE Target Value");
+	// settingsRot = newArray("ImageRotation","ImageRotationAngle"); settingsRotTitles = newArray("Image Rotation","Image Rotation Angle");
+	// settingsBinning = newArray("Binning","BinningLevel"); settingsBinning = newArray("Binning","Binning Level"); 
+	// settingsDSXHDR = newArray("HDRMode", "HDRProcessing"); settingsDSXHDRTitles = newArray("HDR Mode", "HDR Processing"); 
+	// notASCFeatures = newArray("RingLightBlock","BackLight","BackLightBrightnessLevel","DICShearingLevel");
+	// notASCFeaturesDSXTitles = newArray("Ring Light Block","Back Light","Back Light BrightnessLevel","DIC ShearingLevel");
+	zSettingsDSX = newArray("ExtendMode","ZRangeMode","ZSliceTotal","ZSliceCount","ZStartPosition","ZEndPosition","ZRange","ZPitchTravel","HeightDataPerPixelZ");
+	mapSettingsDSX = newArray("OverlapSize","StitchingRowCount","StitchingColumnCount","MapRoiTop","MapRoiLeft","MapRoiWidth","MapRoiHeight","ImageAspectRatio","ImageTrimmingSize");
 	/* Note there is a typo in the Olympus section name: ObsevationSettingInfo[sic] so this may be corrected in the future */
-	settingsDSXTitles = newArray("Observation Method","Image Type","Objective Lens Magnification","Image Height \(pixels\)","Image Width \(pixels\)","Pixel Width  \(pm\)","Original Pixel Width  \(pm\)","Pixel Height \(pm\)","Original Pixel Height \(pm\)","Pixel Depth \(pixels\)","Original Pixel Depth \(pixels\)","Objective Lens Type","Zoom Magnification","Digital Zoom Magnification","Optical Zoom Magnification","Actual Magnification For 1x Zoom","File Version","Image Flip","Image Rotation","Image Rotation Angle","AE","AE Lock","AE Mode","AE Target Value","Binning ","Binning Level","Shading Correction","Image Aspect Ratio","Noise Reduction","Noise Reduction Level","Blur Correction","Blur Correction Value","Contrast Mode","Sharpness Mode","Field Curvature Correction","Microscope Controller Version","Stage Position X","Stage Position Y","Imaging AS","BF Light","BF Light Brightness Level","Ring Light Block","DF Light Block","DF Light Angle","DF Light Mode","Back Light","Back Light BrightnessLevel","DIC ShearingLevel","Analyzer Shearing Level","PBF","Camera Name","Blue Gain Level","Blue Offset Level","Gamma Correction Level","Green Gain Level","Green Offset Level","RedGain Level","Red Offset Level");
+	settingsDSXTitles = newArray("Observation Method","Image Type","Objective Lens Magnification","Image Height \(pixels\)","Image Width \(pixels\)","Pixel Width  \(pm\)","Original Pixel Width  \(pm\)","Pixel Height \(pm\)","Original Pixel Height \(pm\)","Pixel Depth \(pixels\)","Original Pixel Depth \(pixels\)","Objective Lens Type","Zoom Magnification","Digital Zoom Magnification","Optical Zoom Magnification","Actual Magnification For 1x Zoom","Image Flip","Shading Correction","Image Aspect Ratio","Noise Reduction","Noise Reduction Level","Blur Correction","Blur Correction Value","Contrast Mode","Sharpness Mode","Field Curvature Correction","Stage Position X","Stage Position Y","Imaging AS","Analyzer Shearing Level","PBF","Camera Name","Gamma Correction Level");
+	zSettingsDSXTitles = newArray("Focus steps mode", "ZRangeMode","ZSliceTotal","ZSliceCount","ZStartPosition","ZEndPosition","ZRange","ZPitchTravel","pm height/pixel");
+	mapSettingsDSXTitles = newArray("Overlap Size","Stitching Row Count","Stitching Column Count","Map Roi Top","Map Roi Left","Map Roi Width","Map Roi Height","Image Aspect Ratio","Image Trimming Size");
+	dsxEXIFData = getExifDataFromOpenImage();
+	observationMethod = getDSXExifTagFromMetaData(dsxEXIFData,"ObservationMethod");
+	if (observationMethod=="BF"){
+		settingsDSX = Array.concat(settingsDSX,settingsDSXBF);
+		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsDSXBFTitles);
+	}
+	else if (observationMethod=="DF"){
+		settingsDSX = Array.concat(settingsDSX,settingsDSXDF);
+		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsDSXDFTitles);
+	}
+	isMonochrome = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData,"IsMonochrome"));
+	if (isMonochrome){
+		settingsDSX = Array.concat(settingsDSX,"IsMonochrome");
+		settingsDSXTitles = Array.concat(settingsDSXTitles,"Is Monochrome");
+	}
+	else{
+		settingsDSX = Array.concat(settingsDSX,settingsColor);
+		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsColorTitles);	
+	}
+	imageRotated = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData,"ImageRotation"));
+	if (imageRotated){
+		settingsDSX = Array.concat(settingsDSX,"ImageRotationAngle");
+		settingsDSXTitles = Array.concat(settingsDSXTitles,"Image Rotation Angle");
+	}
+	aeSetting = getDSXExifTagFromMetaData(dsxEXIFData,"AE");
+	if (aeSetting=="true"){
+		settingsDSX = Array.concat(settingsDSX,settingsDSXAE);
+		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsDSXAETitles);
+	}
+	hdrProcessing = getDSXExifTagFromMetaData(dsxEXIFData,"HDRProcessing");
+	if (hdrProcessing=="true"){
+		settingsDSX = Array.concat(settingsDSX,"HDRMode");
+		settingsDSXTitles = Array.concat(settingsDSXTitles,"HDR Mode");
+	}
+	binning = getDSXExifTagFromMetaData(dsxEXIFData,"Binning");
+	if (binning=="true"){
+		settingsDSX = Array.concat(settingsDSX,"BinningLevel");
+		settingsDSXTitles = Array.concat(settingsDSXTitles,"Binning Level");
+	}
+	imageType = getDSXExifTagFromMetaData(dsxEXIFData,"ImageType");
+	if (endsWith(imageType,"ExtendHeight")){
+		settingsDSX = Array.concat(settingsDSX,zSettingsDSX);
+		settingsDSXTitles = Array.concat(settingsDSXTitles,zSettingsDSXTitles);
+	}
+	rowCount = getDSXExifTagFromMetaData(dsxEXIFData,"StitchingRowCount");
+	columnCount = getDSXExifTagFromMetaData(dsxEXIFData,"StitchingColumnCount");
+	if ((rowCount + columnCount)>2){
+		settingsDSX = Array.concat(settingsDSX,mapSettingsDSX);
+		settingsDSXTitles = Array.concat(settingsDSXTitles,mapSettingsDSXTitles);	
+	}
+	for(i=0;i<settingsDSX.length;i++){
+		tagReturned = getDSXExifTagFromMetaData(dsxEXIFData,settingsDSX[i]);
+		if (endsWith(tagReturned,"not found in metaData")){
+			settingsDSX = Array.deleteIndex(settingsDSX, i);
+			settingsDSXTitles = Array.deleteIndex(settingsDSXTitles, i);
+		}
+	}
+	settingsN = lengthOf(settingsDSX);	
 	settingsTitlesN = lengthOf(settingsDSXTitles);
-	if (settingsN!=settingsTitlesN) exit("Mismatch between header names and header titles");
-	observationData = exifDSXs(settingsDSX);
+	if (settingsN!=settingsTitlesN){
+		IJ.log("Mismatch between " + settingsN + "header names and " + settingsTitlesN + "header titles");
+		Array.print(settingsDSX);
+		Array.print(settingsDSXTitles);
+		exit("Mismatch between " + settingsN + "header names and " + settingsTitlesN + "header titles");
+	}
+	dsxEXIFData = getExifDataFromOpenImage();
+	observationData = newArray();
 	for(i=0; i<settingsN; i++){
+		observationData[i] = getDSXExifTagFromMetaData(dsxEXIFData,settingsDSX[i]);
 		if (indexOf(settingsDSXTitles[i],"pm")>=0 || indexOf(settingsDSXTitles[i],"pixels")>=0) observationData[i] = parseInt(observationData[i]);
 		else if (indexOf(settingsDSXTitles[i],"Zoom")>=0 || indexOf(settingsDSXTitles[i],"pixels")>=0) observationData[i] = d2s(observationData[i],3);
 	}
@@ -218,15 +299,26 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	innerShadowDarkness = 20;
 	selOffsetX = round(1 + imageCWidth/150); /* default offset of label from edge */
 	selOffsetY = round(1 + imageCHeight/150); /* default offset of label from edge */
-	if (iWPxPm>=0) distPerPixel = (pxWidthMicrons + pxHeightMicrons)/2; /* Defaults to DSX output image, which is automatically resized if beyond a certain size */
-	else if (iWPxPmOr>=0) distPerPixel = (pxWidthMicronsOr + pxHeightMicronsOr)/2;
+	if (iWPxPm>=0){
+		distPerPixel = pxWidthMicrons; /* Defaults to DSX output image, which is automatically resized if beyond a certain size */
+		pxAspectRatio = pxWidthMicrons/pxHeightMicrons;
+	} 
+	else if (iWPxPmOr>=0){
+		distPerPixel = pxWidthMicronsOr;
+		pxAspectRatio = pxWidthMicronsOr/pxHeightMicronsOr;
+	} 
 	/* Then Dialog . . . */
 	Dialog.create("Basic Label Options: " + macroL);
-		if (iWPxPm>=0 || iWPxPmOr>=0) Dialog.addCheckbox("Apply scale of " + distPerPixel + " " + um + " per pixel to image",true);
+		if (iWPxPm>=0 || iWPxPmOr>=0){
+			scaleText = "Apply scale of " + distPerPixel + " " + um + " per pixel";
+			if (pxAspectRatio!=1)	scaleText += ", pixel aspect ratio of " + pxAspectRatio);
+			Dialog.addCheckbox(scaleText,true);
+		} 
 		Dialog.addString("Optional list title \((leave blank for none\)","",50);
 		Dialog.addMessage("Labels: ^2 & um etc. replaced by " + fromCharCode(178) + " & " + fromCharCode(181) + "m etc. If the units are in the parameter label, within \(...\) i.e. \(unit\) they will override this selection:");
 		Dialog.addCheckboxGroup(1+dataN/3,3,observationLabels,defaultLabelChecks);
 		Dialog.addRadioButtonGroup("Also output to log window?", newArray("No","Just selected","All parameters"),1,3,"Just selected");
+		Dialog.addCheckbox("Copy metadata to new image if created",true);
 		textLocChoices = newArray("Top Left", "Top Right", "Center", "Bottom Left", "Bottom Right", "Under", "Center of New Selection"); 
 		iLoc = 0;
 		if (selectionExists) {
@@ -242,14 +334,16 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 			Dialog.addNumber("Selection Bounds: Width = ", selEWidth);
 			Dialog.addNumber("Selection Bounds: Height = ", selEHeight);
 		}
-		Dialog.addNumber("Font size & color:", fontSize, 0, 3,"");
 		grayChoices = newArray("white", "black", "off-white", "off-black", "light_gray", "gray", "dark_gray");
 		colorChoicesStd = newArray("red", "green", "blue", "cyan", "magenta", "yellow", "pink", "orange", "violet");
 		colorChoicesMod = newArray("garnet", "gold", "aqua_modern", "blue_accent_modern", "blue_dark_modern", "blue_modern", "blue_honolulu", "gray_modern", "green_dark_modern", "green_modern", "green_modern_accent", "green_spring_accent", "orange_modern", "pink_modern", "purple_modern", "red_n_modern", "red_modern", "tan_modern", "violet_modern", "yellow_modern");
 		colorChoicesNeon = newArray("jazzberry_jam", "radical_red", "wild_watermelon", "outrageous_orange", "supernova_orange", "atomic_tangerine", "neon_carrot", "sunglow", "laser_lemon", "electric_lime", "screamin'_green", "magic_mint", "blizzard_blue", "dodger_blue", "shocking_pink", "razzle_dazzle_rose", "hot_magenta");
-		if (imageDepth==24)
-			colorChoices = Array.concat(grayChoices, colorChoicesStd, colorChoicesMod, colorChoicesNeon);
-		else colorChoices = grayChoices;
+		if (isMonochrome){
+			if (imageDepth==24) Dialog.addCheckbox("Aquired image was monochrome, convert to 8-bit grayscale?",true);
+			colorChoices = grayChoices;
+		}
+		else colorChoices = Array.concat(grayChoices, colorChoicesStd, colorChoicesMod, colorChoicesNeon);
+		Dialog.addNumber("Font size:", fontSize, 0, 3,"");
 		Dialog.setInsets(-30, 60, 0);
 		Dialog.addChoice("Text color:", colorChoices, colorChoices[0]);
 		fontStyleChoice = newArray("bold", "bold antialiased", "italic", "italic antialiased", "bold italic", "bold italic antialiased", "unstyled");
@@ -263,7 +357,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 /*	*/
 	Dialog.show();
 		if (iWPxPm>=0 || iWPxPmOr>=0){
-			if (Dialog.getCheckbox()) run("Set Scale...", "distance=1 known=&distPerPixel pixel=1 unit=um");
+			if (Dialog.getCheckbox()) run("Set Scale...", "distance=1 known=&distPerPixel pixel=&pxAspectRatio unit=um");
 		}
 		optionalLabel = Dialog.getString();
 		chosenLabels = newArray();
@@ -277,6 +371,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		}
 		if (optionalLabel!="") chosenLabels = Array.concat(optionalLabel,chosenLabels);
 		logOutput = Dialog.getRadioButton();
+		transferMetadata = Dialog.getCheckbox();
 		textLocChoice = Dialog.getChoice();
 		underClear = Dialog.getNumber();
 		if (selectionExists==1) {
@@ -284,6 +379,9 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 			selEY =  Dialog.getNumber();
 			selEWidth =  Dialog.getNumber();
 			selEHeight =  Dialog.getNumber();
+		}
+		if (isMonochrome){
+			if (Dialog.getCheckbox()) run("8-bit");
 		}
 		fontSize =  Dialog.getNumber();
 		selColor = Dialog.getChoice();
@@ -442,6 +540,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	setBatchMode(true);
 	roiManager("show none");
 	run("Duplicate...", imageTitle + "+text");
+	if (transferMetadata) setMetadata("Info",dsxEXIFData);
 	labeledImage = getTitle();
 	setFont(fontName,fontSize, fontStyle);
 	if(textLocChoice=="Under"){
@@ -634,78 +733,44 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		divider = (100 / abs(shadowDarkness));
 		run("Divide...", "value=[divider]");
 	}
-	function exifDSXs(parameters) {
-	/* Returns requested parameter from DSX EXIF header	
-	ObsevationSettingInfo Only
-	v220228: 1st working version
-	v220301: Index search strings now includes both open and close "<" to avoid ambiguity (ImageType). Now checks to see of "obsevation" typo has been fixed.
-	v230120: Assumes that imageJ will import DSX metadata into info header. 
+	function getDSXExifTagFromMetaData(metaData,tagName) {
+	/* metaData is string generated by metaData = getMetadata("Info");	
+		v230120: 1st version  version b
 	*/
-		if (is("Batch Mode")) batchOn = true;
-		else {
-			batchOn = false;
-			setBatchMode(true);
+		i0 = indexOf(metaData, "<"+tagName+">");
+		if (i0!=-1) {
+			i1 = indexOf(metaData, "</"+tagName+">", i0);
+			tagLine = substring(metaData,i0,i1);
+			tagValue = substring(tagLine,indexOf(tagLine,">")+1,tagLine.length);
 		}
-		if (nImages==0) return "Error: no images open";
-		selectImage(getImageID);
-		title = getTitle();
-		if (!endsWith(toLowerCase(title), '.dsx')) exit("The active image is not a DSX");
-		fullEXIF = getMetadata("Info");
-		// observationData = exifDSXs(settingsDSX);
-		// startDSXinfo = indexOf(fullEXIF,"TiffTagDescData");
-		// endDSXinfo = lastIndexOf(fullEXIF,"TiffTagDescData");
-		// if (startDSXinfo>=0 && endDSXinfo>=0) fullEXIF = substring(metaData,startDSXinfo,endDSXinfo); /* probably not necessary but it could filter out some junk */
-		metaDatas = newArray();
-		observationSettings = "ObjectiveLensID ObjectiveLensType ObjectiveLensMagnification Telecentric ZoomMagnification OpiticalZoomMagnification DigitalZoomMagnification ObservationMethod TiltingFrameAngle StageAngle ApertureStop ApertureStopLevel ImagingAS FieldStop FieldStopLevel BFLight BFLightBrightnessLevel FiberLight FiberLightBrightnessLevel RingLightBlock DFLightBlock DFLightBrightnessLevel";
-		if(indexOf(fullEXIF,"<ObsevationSettingInfo>")>=0){
-			obsEXIF = fullEXIF.substring(fullEXIF.indexOf("<ObsevationSettingInfo>");
-			if(fullEXIF.indexOf("</ObsevationSettingInfo>")>=0) obsEXIF = fullEXIF.substring(0,fullEXIF.indexOf("</ObsevationSettingInfo>"));
-		} 
-		else if(indexOf(fullEXIF,"<ObservationSettingInfo>")>=0) obsEXIF = fullEXIF.substring(fullEXIF.indexOf("<ObservationSettingInfo>"),fullEXIF.indexOf("</ObservationSettingInfo>"); /* Future proof version for Olympus typo fix */
-		else if(indexOf(fullEXIF,"<TiffTagDescData xmlns")>=0){
-			obsEXIF = fullEXIF.substring(fullEXIF.indexOf("<TiffTagDescData xmlns"),fullEXIF.indexOf("</TiffTagDescData>"));
-			obsEXIF = obsEXIF.substring(obsEXIF.indexOf(">")+1);
-		}
-		else obsEXIF = fullEXIF;
-		for(i=0; i<parameters.length; i++){
-			parameter = parameters[i];
-			if(indexOf(observationSettings,parameter)<0){
-				index0 = fullEXIF.indexOf("<" + parameter + ">") + parameter.length + 1;
-				index1 = fullEXIF.indexOf("</" + parameter + ">");
-				if (index0<0 || index0<0  || index1<index0 ) 
-					metaDatas[i] = "Error: "+parameter+" not found";
-				else{
-					safeString = fullEXIF.substring(index0, index1+1);
-					safeString = safeString.replace(">","");
-					metaDatas[i] = safeString.replace("<","");
-				}
-			}
-			else {
-				index0 = obsEXIF.indexOf("<" + parameter + ">") + parameter.length + 1;
-				index1 = obsEXIF.indexOf("</" + parameter + ">");
-				if (index0<0 || index0<0 || index1<index0) 
-					metaDatas[i] = "Error: "+parameter+" not found";
-				else {
-					safeString = obsEXIF.substring(index0, index1 + 1);			
-					safeString = safeString.replace(">","");
-					metaDatas[i] = safeString.replace("<","");
-				}
-			}
-		}
-		if(!batchOn) setBatchMode("exit and display");
-		// print("Array.print\(metaDatas\)", "length of parameters:", lengthOf(parameters),"length of metaDatas:",lengthOf(metaDatas));
-		// Array.print(metaDatas);
-		return metaDatas;
+		else tagValue = "" + tagName + " not found in metaData";
+		return tagValue;
+	}
+	function getExifDataFromOpenImage(){
+		/* uses exifReader plugin: https://imagej.nih.gov/ij/plugins/exif-reader.html
+		The exif reader plugin will not load a new image directly if one is open, it will only use the open image
+		- this is why this version opens a new image separately
+		v230512: 1st versions */
+		thisTitle = getTitle();
+		run("Exif Data...");
+		wait(10);
+		selectWindow("EXIF Metadata for " + thisTitle);
+		wait(10);
+		metaInfo = getInfo("window.contents");
+		wait(10);
+		close("EXIF Metadata for " + thisTitle);
+		return metaInfo;
 	}
 	/*
-	Color Functions
+	Color Functions	Based on BAR Utilities: https://imagej.net/plugins/bar
+	Ferreira, T., Miura, K., Bitdeli Chef, & Eglinger, J. (2015). Scripts: BAR 1.1.6 (Version 1.1.6). Zenodo. doi:10.5281/ZENODO.28838
 	*/
-		function getColorArrayFromColorName(colorName) {
+	function getColorArrayFromColorName(colorName) {
 		/* v180828 added Fluorescent Colors
 		   v181017-8 added off-white and off-black for use in gif transparency and also added safe exit if no color match found
 		   v191211 added Cyan
 		   v211022 all names lower-case, all spaces to underscores v220225 Added more hash value comments as a reference v220706 restores missing magenta
-		   REQUIRES restoreExit function.  57 Colors
+		   REQUIRES restoreExit function.  57 Colors v230130 Added more descriptions and modified order
 		*/
 		if (colorName == "white") cA = newArray(255,255,255);
 		else if (colorName == "black") cA = newArray(0,0,0);
@@ -727,13 +792,13 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		else if (colorName == "pink") cA = newArray(255, 192, 203);
 		else if (colorName == "violet") cA = newArray(127,0,255);
 		else if (colorName == "orange") cA = newArray(255, 165, 0);
-		else if (colorName == "garnet") cA = newArray(120,47,64);
-		else if (colorName == "gold") cA = newArray(206,184,136);
+		else if (colorName == "garnet") cA = newArray(120,47,64); /* #782F40 */
+		else if (colorName == "gold") cA = newArray(206,184,136); /* #CEB888 */
 		else if (colorName == "aqua_modern") cA = newArray(75,172,198); /* #4bacc6 AKA "Viking" aqua */
 		else if (colorName == "blue_accent_modern") cA = newArray(79,129,189); /* #4f81bd */
 		else if (colorName == "blue_dark_modern") cA = newArray(31,73,125); /* #1F497D */
-		else if (colorName == "blue_modern") cA = newArray(58,93,174); /* #3a5dae */
 		else if (colorName == "blue_honolulu") cA = newArray(0,118,182); /* Honolulu Blue #30076B6 */
+		else if (colorName == "blue_modern") cA = newArray(58,93,174); /* #3a5dae */
 		else if (colorName == "gray_modern") cA = newArray(83,86,90); /* bright gray #53565A */
 		else if (colorName == "green_dark_modern") cA = newArray(121,133,65); /* Wasabi #798541 */
 		else if (colorName == "green_modern") cA = newArray(155,187,89); /* #9bbb59 AKA "Chelsea Cucumber" */
@@ -751,20 +816,20 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		/* Fluorescent Colors https://www.w3schools.com/colors/colors_crayola.asp */
 		else if (colorName == "radical_red") cA = newArray(255,53,94);			/* #FF355E */
 		else if (colorName == "wild_watermelon") cA = newArray(253,91,120);		/* #FD5B78 */
+		else if (colorName == "shocking_pink") cA = newArray(255,110,255);		/* #FF6EFF Ultra Pink */
+		else if (colorName == "razzle_dazzle_rose") cA = newArray(238,52,210); 	/* #EE34D2 */
+		else if (colorName == "hot_magenta") cA = newArray(255,0,204);			/* #FF00CC AKA Purple Pizzazz */
 		else if (colorName == "outrageous_orange") cA = newArray(255,96,55);	/* #FF6037 */
 		else if (colorName == "supernova_orange") cA = newArray(255,191,63);	/* FFBF3F Supernova Neon Orange*/
-		else if (colorName == "atomic_tangerine") cA = newArray(255,153,102);	/* #FF9966 */
-		else if (colorName == "neon_carrot") cA = newArray(255,153,51);			/* #FF9933 */
 		else if (colorName == "sunglow") cA = newArray(255,204,51); 			/* #FFCC33 */
+		else if (colorName == "neon_carrot") cA = newArray(255,153,51);			/* #FF9933 */
+		else if (colorName == "atomic_tangerine") cA = newArray(255,153,102);	/* #FF9966 */
 		else if (colorName == "laser_lemon") cA = newArray(255,255,102); 		/* #FFFF66 "Unmellow Yellow" */
 		else if (colorName == "electric_lime") cA = newArray(204,255,0); 		/* #CCFF00 */
 		else if (colorName == "screamin'_green") cA = newArray(102,255,102); 	/* #66FF66 */
 		else if (colorName == "magic_mint") cA = newArray(170,240,209); 		/* #AAF0D1 */
 		else if (colorName == "blizzard_blue") cA = newArray(80,191,230); 		/* #50BFE6 Malibu */
 		else if (colorName == "dodger_blue") cA = newArray(9,159,255);			/* #099FFF Dodger Neon Blue */
-		else if (colorName == "shocking_pink") cA = newArray(255,110,255);		/* #FF6EFF Ultra Pink */
-		else if (colorName == "razzle_dazzle_rose") cA = newArray(238,52,210); 	/* #EE34D2 */
-		else if (colorName == "hot_magenta") cA = newArray(255,0,204);			/* #FF00CC AKA Purple Pizzazz */
 		else restoreExit("No color match to " + colorName);
 		return cA;
 	}
@@ -793,25 +858,25 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		 return hexName;
 	}
 		
-	/*	End of Color Functions	*/
+	/*	End of BAR-based Color Functions	*/
 	
   	function getFontChoiceList() {
 		/*	v180723 first version
 			v180828 Changed order of favorites
 			v190108 Longer list of favorites
+			v230209 Minor optimization
 		*/
 		systemFonts = getFontList();
 		IJFonts = newArray("SansSerif", "Serif", "Monospaced");
 		fontNameChoice = Array.concat(IJFonts,systemFonts);
 		faveFontList = newArray("Your favorite fonts here", "Open Sans ExtraBold", "Fira Sans ExtraBold", "Noto Sans Black", "Arial Black", "Montserrat Black", "Lato Black", "Roboto Black", "Merriweather Black", "Alegreya Black", "Tahoma Bold", "Calibri Bold", "Helvetica", "SansSerif", "Calibri", "Roboto", "Tahoma", "Times New Roman Bold", "Times Bold", "Serif");
 		faveFontListCheck = newArray(faveFontList.length);
-		counter = 0;
-		for (i=0; i<faveFontList.length; i++) {
+		for (i=0,counter=0; i<faveFontList.length; i++) {
 			for (j=0; j<fontNameChoice.length; j++) {
 				if (faveFontList[i] == fontNameChoice[j]) {
 					faveFontListCheck[counter] = faveFontList[i];
-					counter +=1;
 					j = fontNameChoice.length;
+					counter++;
 				}
 			}
 		}
@@ -872,36 +937,47 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		v211104: Restricts cleanup to end of string to reduce risk of corrupting path
 		v211112: Tries to fix trapped extension before channel listing. Adds xlsx extension.
 		v220615: Tries to fix the fix for the trapped extensions ...
+		v230504: Protects directory path if included in string. Only removes doubled spaces and lines.
+		v230505: Unwanted dupes replaced by unusefulCombos.
 		*/
+		fS = File.separator;
 		string = "" + string;
-		if (lastIndexOf(string, ".")>0 || lastIndexOf(string, "_lzw")>0) {
-			knownExt = newArray("dsx", "DSX", "tif", "tiff", "TIF", "TIFF", "png", "PNG", "GIF", "gif", "jpg", "JPG", "jpeg", "JPEG", "jp2", "JP2", "txt", "TXT", "csv", "CSV","xlsx","XLSX","_"," ");
-			kEL = lengthOf(knownExt);
-			chanLabels = newArray("\(red\)","\(green\)","\(blue\)");
-			unwantedSuffixes = newArray("_lzw"," ","  ", "__","--","_","-");
-			uSL = lengthOf(unwantedSuffixes);
-			for (i=0; i<kEL; i++) {
-				for (j=0; j<3; j++){ /* Looking for channel-label-trapped extensions */
-					ichanLabels = lastIndexOf(string, chanLabels[j]);
-					iExt = lastIndexOf(string, "." + knownExt[i]);
-					if(ichanLabels>0 && iExt>(ichanLabels+lengthOf(chanLabels[j]))){
-						iExt = lastIndexOf(string, "." + knownExt[i]);
-						if (ichanLabels>iExt && iExt>0) string = "" + substring(string, 0, iExt) + "_" + chanLabels[j];
-						ichanLabels = lastIndexOf(string, chanLabels[j]);
-						for (k=0; k<uSL; k++){
-							iExt = lastIndexOf(string, unwantedSuffixes[k]);  /* common ASC suffix */
-							if (ichanLabels>iExt && iExt>0) string = "" + substring(string, 0, iExt) + "_" + chanLabels[j];
-						}
-					}
-				}
-				iExt = lastIndexOf(string, "." + knownExt[i]);
-				if (iExt>=(lengthOf(string)-(lengthOf(knownExt[i])+1)) && iExt>0) string = "" + substring(string, 0, iExt);
+		protectedPathEnd = lastIndexOf(string,fS)+1;
+		if (protectedPathEnd>0){
+			protectedPath = substring(string,0,protectedPathEnd);
+			string = substring(string,protectedPathEnd);
+		}
+		unusefulCombos = newArray("-", "_"," ");
+		for (i=0; i<lengthOf(unusefulCombos); i++){
+			for (j=0; j<lengthOf(unusefulCombos); j++){
+				combo = unusefulCombos[i] + unusefulCombos[j];
+				while (indexOf(string,combo)>=0) string = replace(string,combo,unusefulCombos[i]);
 			}
 		}
-		unwantedSuffixes = newArray("_lzw"," ","  ", "__","--","_","-");
-		for (i=0; i<lengthOf(unwantedSuffixes); i++){
-			sL = lengthOf(string);
-			if (endsWith(string,unwantedSuffixes[i])) string = substring(string,0,sL-lengthOf(unwantedSuffixes[i])); /* cleanup previous suffix */
+		if (lastIndexOf(string, ".")>0 || lastIndexOf(string, "_lzw")>0) {
+			knownExt = newArray("dsx", "DSX", "tif", "tiff", "TIF", "TIFF", "png", "PNG", "GIF", "gif", "jpg", "JPG", "jpeg", "JPEG", "jp2", "JP2", "txt", "TXT", "csv", "CSV","xlsx","XLSX");
+			kEL = knownExt.length;
+			chanLabels = newArray("\(red\)","\(green\)","\(blue\)");
+			for (i=0; i<kEL; i++) {
+				kExtn = "." + knownExt[i];
+				for (j=0; j<3; j++){ /* Looking for channel-label-trapped extensions */
+					iChanLabels = lastIndexOf(string, chanLabels[j])-1;
+					if (iChanLabels>0){
+						preChan = substring(string,0,iChanLabels);
+						postChan = substring(string,iChanLabels);
+						while (indexOf(preChan,kExtn)>=0) string = replace(preChan,kExtn,"") + postChan;
+					}
+				}
+				while (endsWith(string,kExtn)) string = "" + substring(string, 0, lastIndexOf(string, kExtn));
+			}
+		}
+		unwantedSuffixes = newArray("_lzw"," ", "_","-");
+		for (i=0; i<unwantedSuffixes.length; i++){
+			while (endsWith(string,unwantedSuffixes[i])) string = substring(string,0,string.length-lengthOf(unwantedSuffixes[i])); /* cleanup previous suffix */
+		}
+		if (protectedPathEnd>0){
+			if(!endsWith(protectedPath,fS)) protectedPath += fS;
+			string = protectedPath + string;
 		}
 		return string;
 	}
