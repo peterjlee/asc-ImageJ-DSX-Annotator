@@ -9,9 +9,10 @@
 	v230120b-v230123: Optimized for much faster imageJ info import. Better hanlding of DSX image that has been cropped after opening. f1: updated stripKnownExtensionFromString function
 	v230512: Switched to using exifReader plugin to get a more complete exif import.
 	v230513: Smarter about monochrome images. Adds transfer of metaData option.
+	v230516: Fixed old variable names left in imported scales lines. f1: updated DSX tag functions.f2 update stripKnowExtension
  */
 macro "Add Multiple Lines of Metadata to DSX Image" {
-	macroL = "DSX_Annotator_v230513.ijm";
+	macroL = "DSX_Annotator_v230516-f2.ijm";
 	saveSettings; /* for restoreExit */
 	if (nImages==0) exit("sorry, this macro only works on open images");
 	imageTitle = getTitle();
@@ -45,14 +46,14 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	// settingsDSXHDR = newArray("HDRMode", "HDRProcessing"); settingsDSXHDRTitles = newArray("HDR Mode", "HDR Processing"); 
 	// notASCFeatures = newArray("RingLightBlock","BackLight","BackLightBrightnessLevel","DICShearingLevel");
 	// notASCFeaturesDSXTitles = newArray("Ring Light Block","Back Light","Back Light BrightnessLevel","DIC ShearingLevel");
-	zSettingsDSX = newArray("ExtendMode","ZRangeMode","ZSliceTotal","ZSliceCount","ZStartPosition","ZEndPosition","ZRange","ZPitchTravel","HeightDataPerPixelZ");
-	mapSettingsDSX = newArray("OverlapSize","StitchingRowCount","StitchingColumnCount","MapRoiTop","MapRoiLeft","MapRoiWidth","MapRoiHeight","ImageAspectRatio","ImageTrimmingSize");
-	/* Note there is a typo in the Olympus section name: ObsevationSettingInfo[sic] so this may be corrected in the future */
 	settingsDSXTitles = newArray("Observation Method","Image Type","Objective Lens Magnification","Image Height \(pixels\)","Image Width \(pixels\)","Pixel Width  \(pm\)","Original Pixel Width  \(pm\)","Pixel Height \(pm\)","Original Pixel Height \(pm\)","Pixel Depth \(pixels\)","Original Pixel Depth \(pixels\)","Objective Lens Type","Zoom Magnification","Digital Zoom Magnification","Optical Zoom Magnification","Actual Magnification For 1x Zoom","Image Flip","Shading Correction","Image Aspect Ratio","Noise Reduction","Noise Reduction Level","Blur Correction","Blur Correction Value","Contrast Mode","Sharpness Mode","Field Curvature Correction","Stage Position X","Stage Position Y","Imaging AS","Analyzer Shearing Level","PBF","Camera Name","Gamma Correction Level");
+	zSettingsDSX = newArray("ExtendMode","ZRangeMode","ZSliceTotal","ZSliceCount","ZStartPosition","ZEndPosition","ZRange","ZPitchTravel","HeightDataPerPixelZ");
+	/* Note there is a typo in the Olympus section name: ObsevationSettingInfo[sic] so this may be corrected in the future */
 	zSettingsDSXTitles = newArray("Focus steps mode", "ZRangeMode","ZSliceTotal","ZSliceCount","ZStartPosition","ZEndPosition","ZRange","ZPitchTravel","pm height/pixel");
+	mapSettingsDSX = newArray("OverlapSize","StitchingRowCount","StitchingColumnCount","MapRoiTop","MapRoiLeft","MapRoiWidth","MapRoiHeight","ImageAspectRatio","ImageTrimmingSize");
 	mapSettingsDSXTitles = newArray("Overlap Size","Stitching Row Count","Stitching Column Count","Map Roi Top","Map Roi Left","Map Roi Width","Map Roi Height","Image Aspect Ratio","Image Trimming Size");
 	dsxEXIFData = getExifDataFromOpenImage();
-	observationMethod = getDSXExifTagFromMetaData(dsxEXIFData,"ObservationMethod");
+	observationMethod = getDSXExifTagFromMetaData(dsxEXIFData,"ObservationMethod",true);
 	if (observationMethod=="BF"){
 		settingsDSX = Array.concat(settingsDSX,settingsDSXBF);
 		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsDSXBFTitles);
@@ -61,48 +62,47 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		settingsDSX = Array.concat(settingsDSX,settingsDSXDF);
 		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsDSXDFTitles);
 	}
-	isMonochrome = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData,"IsMonochrome"));
+	isMonochrome = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData,"IsMonochrome",true));
 	if (isMonochrome){
 		settingsDSX = Array.concat(settingsDSX,"IsMonochrome");
-		settingsDSXTitles = Array.concat(settingsDSXTitles,"Is Monochrome");
+		settingsDSXTitles = Array.concat(settingsDSXTitles,"Is Monochrome",true);
 	}
 	else{
 		settingsDSX = Array.concat(settingsDSX,settingsColor);
 		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsColorTitles);	
 	}
-	imageRotated = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData,"ImageRotation"));
+	imageRotated = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData,"ImageRotation",true));
 	if (imageRotated){
 		settingsDSX = Array.concat(settingsDSX,"ImageRotationAngle");
 		settingsDSXTitles = Array.concat(settingsDSXTitles,"Image Rotation Angle");
 	}
-	aeSetting = getDSXExifTagFromMetaData(dsxEXIFData,"AE");
+	aeSetting = getDSXExifTagFromMetaData(dsxEXIFData,"AE",true);
 	if (aeSetting=="true"){
 		settingsDSX = Array.concat(settingsDSX,settingsDSXAE);
 		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsDSXAETitles);
 	}
-	hdrProcessing = getDSXExifTagFromMetaData(dsxEXIFData,"HDRProcessing");
+	hdrProcessing = getDSXExifTagFromMetaData(dsxEXIFData,"HDRProcessing",true);
 	if (hdrProcessing=="true"){
 		settingsDSX = Array.concat(settingsDSX,"HDRMode");
 		settingsDSXTitles = Array.concat(settingsDSXTitles,"HDR Mode");
 	}
-	binning = getDSXExifTagFromMetaData(dsxEXIFData,"Binning");
+	binning = getDSXExifTagFromMetaData(dsxEXIFData,"Binning",true);
 	if (binning=="true"){
 		settingsDSX = Array.concat(settingsDSX,"BinningLevel");
 		settingsDSXTitles = Array.concat(settingsDSXTitles,"Binning Level");
 	}
-	imageType = getDSXExifTagFromMetaData(dsxEXIFData,"ImageType");
+	imageType = getDSXExifTagFromMetaData(dsxEXIFData,"ImageType",true);
 	if (endsWith(imageType,"ExtendHeight")){
 		settingsDSX = Array.concat(settingsDSX,zSettingsDSX);
 		settingsDSXTitles = Array.concat(settingsDSXTitles,zSettingsDSXTitles);
 	}
-	rowCount = getDSXExifTagFromMetaData(dsxEXIFData,"StitchingRowCount");
-	columnCount = getDSXExifTagFromMetaData(dsxEXIFData,"StitchingColumnCount");
-	if ((rowCount + columnCount)>2){
+	stitching = getDSXExifTagFromMetaData(dsxEXIFData,"Stitching",true);
+	if (stitching){
 		settingsDSX = Array.concat(settingsDSX,mapSettingsDSX);
 		settingsDSXTitles = Array.concat(settingsDSXTitles,mapSettingsDSXTitles);	
 	}
 	for(i=0;i<settingsDSX.length;i++){
-		tagReturned = getDSXExifTagFromMetaData(dsxEXIFData,settingsDSX[i]);
+		tagReturned = getDSXExifTagFromMetaData(dsxEXIFData,settingsDSX[i],true);
 		if (endsWith(tagReturned,"not found in metaData")){
 			settingsDSX = Array.deleteIndex(settingsDSX, i);
 			settingsDSXTitles = Array.deleteIndex(settingsDSXTitles, i);
@@ -119,7 +119,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	dsxEXIFData = getExifDataFromOpenImage();
 	observationData = newArray();
 	for(i=0; i<settingsN; i++){
-		observationData[i] = getDSXExifTagFromMetaData(dsxEXIFData,settingsDSX[i]);
+		observationData[i] = getDSXExifTagFromMetaData(dsxEXIFData,settingsDSX[i],true);
 		if (indexOf(settingsDSXTitles[i],"pm")>=0 || indexOf(settingsDSXTitles[i],"pixels")>=0) observationData[i] = parseInt(observationData[i]);
 		else if (indexOf(settingsDSXTitles[i],"Zoom")>=0 || indexOf(settingsDSXTitles[i],"pixels")>=0) observationData[i] = d2s(observationData[i],3);
 	}
@@ -733,13 +733,17 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		divider = (100 / abs(shadowDarkness));
 		run("Divide...", "value=[divider]");
 	}
-	function getDSXExifTagFromMetaData(metaData,tagName) {
+	function getDSXExifTagFromMetaData(metaData,tagName,lastInstance) {
 	/* metaData is string generated by metaData = getMetadata("Info");	
 		v230120: 1st version  version b
+		v230526: This version has "lastInstance" option
 	*/
-		i0 = indexOf(metaData, "<"+tagName+">");
+		tagBegin = "<"+tagName+">";
+		if (!lastInstance) i0 = indexOf(metaData,tagBegin);
+		else  i0 = lastIndexOf(metaData,tagBegin);
 		if (i0!=-1) {
-			i1 = indexOf(metaData, "</"+tagName+">", i0);
+			tagEnd = "</" + tagName + ">";
+			i1 = indexOf(metaData,tagEnd,i0);
 			tagLine = substring(metaData,i0,i1);
 			tagValue = substring(tagLine,indexOf(tagLine,">")+1,tagLine.length);
 		}
@@ -750,15 +754,14 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		/* uses exifReader plugin: https://imagej.nih.gov/ij/plugins/exif-reader.html
 		The exif reader plugin will not load a new image directly if one is open, it will only use the open image
 		- this is why this version opens a new image separately
-		v230512: 1st versions */
-		thisTitle = getTitle();
+		v230512: 1st version
+		v230526: Shorter */
+		exifTitle = "EXIF Metadata for " + getTitle();
 		run("Exif Data...");
 		wait(10);
-		selectWindow("EXIF Metadata for " + thisTitle);
-		wait(10);
+		selectWindow(exifTitle);
 		metaInfo = getInfo("window.contents");
-		wait(10);
-		close("EXIF Metadata for " + thisTitle);
+		close(exifTitle);
 		return metaInfo;
 	}
 	/*
@@ -797,7 +800,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		else if (colorName == "aqua_modern") cA = newArray(75,172,198); /* #4bacc6 AKA "Viking" aqua */
 		else if (colorName == "blue_accent_modern") cA = newArray(79,129,189); /* #4f81bd */
 		else if (colorName == "blue_dark_modern") cA = newArray(31,73,125); /* #1F497D */
-		else if (colorName == "blue_honolulu") cA = newArray(0,118,182); /* Honolulu Blue #30076B6 */
+		else if (colorName == "blue_honolulu") cA = newArray(0,118,182); /* Honolulu Blue #006db0 */
 		else if (colorName == "blue_modern") cA = newArray(58,93,174); /* #3a5dae */
 		else if (colorName == "gray_modern") cA = newArray(83,86,90); /* bright gray #53565A */
 		else if (colorName == "green_dark_modern") cA = newArray(121,133,65); /* Wasabi #798541 */
@@ -939,6 +942,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		v220615: Tries to fix the fix for the trapped extensions ...
 		v230504: Protects directory path if included in string. Only removes doubled spaces and lines.
 		v230505: Unwanted dupes replaced by unusefulCombos.
+		v230607: Quick fix for infinite loop on one of while statements.
 		*/
 		fS = File.separator;
 		string = "" + string;
@@ -958,14 +962,17 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 			knownExt = newArray("dsx", "DSX", "tif", "tiff", "TIF", "TIFF", "png", "PNG", "GIF", "gif", "jpg", "JPG", "jpeg", "JPEG", "jp2", "JP2", "txt", "TXT", "csv", "CSV","xlsx","XLSX");
 			kEL = knownExt.length;
 			chanLabels = newArray("\(red\)","\(green\)","\(blue\)");
-			for (i=0; i<kEL; i++) {
+			for (i=0,k=0; i<kEL; i++) {
 				kExtn = "." + knownExt[i];
 				for (j=0; j<3; j++){ /* Looking for channel-label-trapped extensions */
 					iChanLabels = lastIndexOf(string, chanLabels[j])-1;
 					if (iChanLabels>0){
 						preChan = substring(string,0,iChanLabels);
 						postChan = substring(string,iChanLabels);
-						while (indexOf(preChan,kExtn)>=0) string = replace(preChan,kExtn,"") + postChan;
+						while (indexOf(preChan,kExtn)>=0 && k<10){  /* k counter quick fix for infinite loop */
+							string = replace(preChan,kExtn,"") + postChan;
+							k++;
+						}
 					}
 				}
 				while (endsWith(string,kExtn)) string = "" + substring(string, 0, lastIndexOf(string, kExtn));
