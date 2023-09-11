@@ -596,7 +596,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		selectWindow(labeledImage);
 	}
 	else {
-		colorHex = getHexColorFromRGBArray(selColor);
+		colorHex = getHexColorFromColorName(selColor);
 		setColor(colorHex);
 		xStart = textLabelX;
 		if(textLocChoice=="under"){
@@ -854,7 +854,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	  if (lengthOf(n)==1) n= "0"+n; return n;
 	  if (lengthOf(""+n)==1) n= "0"+n; return n;
 	}
-	function getHexColorFromRGBArray(colorNameString) {
+	function getHexColorFromColorName(colorNameString) {
 		colorArray = getColorArrayFromColorName(colorNameString);
 		 r = toHex(colorArray[0]); g = toHex(colorArray[1]); b = toHex(colorArray[2]);
 		 hexName= "#" + ""+pad(r) + ""+pad(g) + ""+pad(b);
