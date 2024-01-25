@@ -9,10 +9,10 @@
 	v230120b-v230123: Optimized for much faster imageJ info import. Better hanlding of DSX image that has been cropped after opening. f1: updated stripKnownExtensionFromString function
 	v230512: Switched to using exifReader plugin to get a more complete exif import.
 	v230513: Smarter about monochrome images. Adds transfer of metaData option.
-	v230516: Fixed old variable names left in imported scales lines. f1: updated DSX tag functions.f2 update stripKnowExtension. F3: Updated indexOfArray functions. F4: getColorArrayFromColorName_v230908.  F10 : Replaced function: pad.
+	v230516: Fixed old variable names left in imported scales lines. f1: updated DSX tag functions.f2 update stripKnowExtension. F3: Updated indexOfArray functions. F4: getColorArrayFromColorName_v230908.  F10 : Replaced function: pad. F11: Updated getColorFromColorName function (012324).
  */
 macro "Add Multiple Lines of Metadata to DSX Image" {
-	macroL = "DSX_Annotator_v230516-f10.ijm";
+	macroL = "DSX_Annotator_v230516-f11.ijm";
 	if (nImages==0) exit("sorry, this macro only works on open images");
 	imageTitle = getTitle();
 	um = getInfo("micrometer.abbreviation");
@@ -776,17 +776,13 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		   v211022 all names lower-case, all spaces to underscores v220225 Added more hash value comments as a reference v220706 restores missing magenta
 		   v230130 Added more descriptions and modified order.
 		   v230908: Returns "white" array if not match is found and logs issues without exiting.
-		     57 Colors 
+		   v240123: Removed duplicate entries: Now 53 unique colors 
 		*/
-		functionL = "getColorArrayFromColorName_v230911";
+		functionL = "getColorArrayFromColorName_v240123";
 		cA = newArray(255,255,255); /* defaults to white */
 		if (colorName == "white") cA = newArray(255,255,255);
 		else if (colorName == "black") cA = newArray(0,0,0);
 		else if (colorName == "off-white") cA = newArray(245,245,245);
-		else if (colorName == "off-black") cA = newArray(10,10,10);
-		else if (colorName == "light_gray") cA = newArray(200,200,200);
-		else if (colorName == "gray") cA = newArray(127,127,127);
-		else if (colorName == "dark_gray") cA = newArray(51,51,51);
 		else if (colorName == "off-black") cA = newArray(10,10,10);
 		else if (colorName == "light_gray") cA = newArray(200,200,200);
 		else if (colorName == "gray") cA = newArray(127,127,127);
