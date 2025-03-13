@@ -10,16 +10,17 @@
 	v230512: Switched to using exifReader plugin to get a more complete exif import.
 	v230513: Smarter about monochrome images. Adds transfer of metaData option.
 	v230516: Fixed old variable names left in imported scales lines. f1: updated DSX tag functions.f2 update stripKnowExtension. F3: Updated indexOfArray functions. F4: getColorArrayFromColorName_v230908.  F10 : Replaced function: pad. F11: Updated getColorFromColorName function (012324). F12: updated function unCleanLabel.
+	v250313: Removed stray ) from line 313. Beautified.
  */
 macro "Add Multiple Lines of Metadata to DSX Image" {
-	macroL = "DSX_Annotator_v230516-f12.ijm";
-	if (nImages==0) exit("sorry, this macro only works on open images");
+	macroL = "DSX_Annotator_v250313.ijm";
+	if (nImages == 0) exit("sorry, this macro only works on open images");
 	imageTitle = getTitle();
 	um = getInfo("micrometer.abbreviation");
 	if (!endsWith(toLowerCase(imageTitle), '.dsx'))
 		showMessageWithCancel("Title does not end with \"DSX\"", "A DSX image is required, do you want to continue?" + imageTitle + " ?");
 	// Checks to see if a Ramp legend rather than the image has been selected by accident
-	if (matches(imageTitle, ".*Ramp.*")==1) showMessageWithCancel("Title contains \"Ramp\"", "Do you want to label" + imageTitle + " ?");
+	if (matches(imageTitle, ".*Ramp.*") == 1) showMessageWithCancel("Title contains \"Ramp\"", "Do you want to label" + imageTitle + " ?");
 	/* Settings preferences set up */
 	imageCWidth = getWidth(); /* note: this is changed from imageWidth because of DSX info name clash */
 	imageCHeight = getHeight(); /* note: this is changed from imageHeight because of DSX info name clash */
@@ -29,87 +30,89 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	userPath = getInfo("user.dir");
 	prefsDelimiter = "|";
 	prefsNameKey = "ascDSXAnnotatorPrefs.";
-	prefsParameters = call("ij.Prefs.get", prefsNameKey+"lastParameters", "None");
-	if (prefsParameters!="None") defaultSettings = split(prefsParameters,prefsDelimiter);
-	else defaultSettings = newArray("ObservationMethod","ImageType","ImageSizePix","ImageSizeMicrons","ObjectiveLensType","ObjectiveLensMagnification","ZoomMagnification");
+	prefsParameters = call("ij.Prefs.get", prefsNameKey + "lastParameters", "None");
+	if (prefsParameters != "None") defaultSettings = split(prefsParameters, prefsDelimiter);
+	else defaultSettings = newArray("ObservationMethod", "ImageType", "ImageSizePix", "ImageSizeMicrons", "ObjectiveLensType", "ObjectiveLensMagnification", "ZoomMagnification");
 	/* End preferences recall */
-	settingsDSX = newArray("ObservationMethod","ImageType","ObjectiveLensMagnification","ImageHeight","ImageWidth","ColorDataPerPixelX","ImageDataPerPixelX","ColorDataPerPixelY","ImageDataPerPixelY","ColorDataPerPixelZ","ImageDataPerPixelZ","ObjectiveLensType","ZoomMagnification","DigitalZoomMagnification","OpiticalZoomMagnification","ActualMagnificationFor1xZoom","ImageFlip","ShadingCorrection","ImageAspectRatio","NoiseReduction","NoiseReductionLevel","BlurCorrection","BlurCorrectionValue","ContrastMode","SharpnessMode","FieldCurvatureCorrection","StagePositionX","StagePositionY","ImagingAS","AnalyzerShearingLevel","PBF","CameraName","GammaCorrectionLevel");
-	settingsColor = newArray("BlueGainLevel","BlueOffsetLevel","GreenGainLevel","GreenOffsetLevel","RedGainLevel","RedOffsetLevel");
-	settingsColorTitles = newArray("Blue Gain Level","Blue Offset Level","Green Gain Level","Green Offset Level","RedGain Level","Red Offset Level");
-	settingsDontCare = newArray("FileVersion","MicroscopeControllerVersion"); settingsDontCareTitles = newArray("File Version","Microscope Controller Version");
-	settingsDSXBF = newArray("BFLight","BFLightBrightnessLevel"); settingsDSXBFTitles = newArray("BF Light","BF Light Brightness Level");
-	settingsDSXDF = newArray("DFLightBlock","DFLightAngle","DFLightMode"); settingsDSXDFTitles = newArray("DF Light Block","DF Light Angle","DF Light Mode");
-	settingsDSXAE = newArray("AE","AELock","AEMode","AETargetValue"); settingsDSXAETitles = newArray("Auto Exposure","AE Lock","AE Mode","AE Target Value");
+	settingsDSX = newArray("ObservationMethod", "ImageType", "ObjectiveLensMagnification", "ImageHeight", "ImageWidth", "ColorDataPerPixelX", "ImageDataPerPixelX", "ColorDataPerPixelY", "ImageDataPerPixelY", "ColorDataPerPixelZ", "ImageDataPerPixelZ", "ObjectiveLensType", "ZoomMagnification", "DigitalZoomMagnification", "OpiticalZoomMagnification", "ActualMagnificationFor1xZoom", "ImageFlip", "ShadingCorrection", "ImageAspectRatio", "NoiseReduction", "NoiseReductionLevel", "BlurCorrection", "BlurCorrectionValue", "ContrastMode", "SharpnessMode", "FieldCurvatureCorrection", "StagePositionX", "StagePositionY", "ImagingAS", "AnalyzerShearingLevel", "PBF", "CameraName", "GammaCorrectionLevel");
+	settingsColor = newArray("BlueGainLevel", "BlueOffsetLevel", "GreenGainLevel", "GreenOffsetLevel", "RedGainLevel", "RedOffsetLevel");
+	settingsColorTitles = newArray("Blue Gain Level", "Blue Offset Level", "Green Gain Level", "Green Offset Level", "RedGain Level", "Red Offset Level");
+	settingsDontCare = newArray("FileVersion", "MicroscopeControllerVersion");
+	settingsDontCareTitles = newArray("File Version", "Microscope Controller Version");
+	settingsDSXBF = newArray("BFLight", "BFLightBrightnessLevel");
+	settingsDSXBFTitles = newArray("BF Light", "BF Light Brightness Level");
+	settingsDSXDF = newArray("DFLightBlock", "DFLightAngle", "DFLightMode");
+	settingsDSXDFTitles = newArray("DF Light Block", "DF Light Angle", "DF Light Mode");
+	settingsDSXAE = newArray("AE", "AELock", "AEMode", "AETargetValue");
+	settingsDSXAETitles = newArray("Auto Exposure", "AE Lock", "AE Mode", "AE Target Value");
 	// settingsRot = newArray("ImageRotation","ImageRotationAngle"); settingsRotTitles = newArray("Image Rotation","Image Rotation Angle");
 	// settingsBinning = newArray("Binning","BinningLevel"); settingsBinning = newArray("Binning","Binning Level"); 
 	// settingsDSXHDR = newArray("HDRMode", "HDRProcessing"); settingsDSXHDRTitles = newArray("HDR Mode", "HDR Processing"); 
 	// notASCFeatures = newArray("RingLightBlock","BackLight","BackLightBrightnessLevel","DICShearingLevel");
 	// notASCFeaturesDSXTitles = newArray("Ring Light Block","Back Light","Back Light BrightnessLevel","DIC ShearingLevel");
-	settingsDSXTitles = newArray("Observation Method","Image Type","Objective Lens Magnification","Image Height \(pixels\)","Image Width \(pixels\)","Pixel Width  \(pm\)","Original Pixel Width  \(pm\)","Pixel Height \(pm\)","Original Pixel Height \(pm\)","Pixel Depth \(pixels\)","Original Pixel Depth \(pixels\)","Objective Lens Type","Zoom Magnification","Digital Zoom Magnification","Optical Zoom Magnification","Actual Magnification For 1x Zoom","Image Flip","Shading Correction","Image Aspect Ratio","Noise Reduction","Noise Reduction Level","Blur Correction","Blur Correction Value","Contrast Mode","Sharpness Mode","Field Curvature Correction","Stage Position X","Stage Position Y","Imaging AS","Analyzer Shearing Level","PBF","Camera Name","Gamma Correction Level");
-	zSettingsDSX = newArray("ExtendMode","ZRangeMode","ZSliceTotal","ZSliceCount","ZStartPosition","ZEndPosition","ZRange","ZPitchTravel","HeightDataPerPixelZ");
+	settingsDSXTitles = newArray("Observation Method", "Image Type", "Objective Lens Magnification", "Image Height \(pixels\)", "Image Width \(pixels\)", "Pixel Width  \(pm\)", "Original Pixel Width  \(pm\)", "Pixel Height \(pm\)", "Original Pixel Height \(pm\)", "Pixel Depth \(pixels\)", "Original Pixel Depth \(pixels\)", "Objective Lens Type", "Zoom Magnification", "Digital Zoom Magnification", "Optical Zoom Magnification", "Actual Magnification For 1x Zoom", "Image Flip", "Shading Correction", "Image Aspect Ratio", "Noise Reduction", "Noise Reduction Level", "Blur Correction", "Blur Correction Value", "Contrast Mode", "Sharpness Mode", "Field Curvature Correction", "Stage Position X", "Stage Position Y", "Imaging AS", "Analyzer Shearing Level", "PBF", "Camera Name", "Gamma Correction Level");
+	zSettingsDSX = newArray("ExtendMode", "ZRangeMode", "ZSliceTotal", "ZSliceCount", "ZStartPosition", "ZEndPosition", "ZRange", "ZPitchTravel", "HeightDataPerPixelZ");
 	/* Note there is a typo in the Olympus section name: ObsevationSettingInfo[sic] so this may be corrected in the future */
-	zSettingsDSXTitles = newArray("Focus steps mode", "ZRangeMode","ZSliceTotal","ZSliceCount","ZStartPosition","ZEndPosition","ZRange","ZPitchTravel","pm height/pixel");
-	mapSettingsDSX = newArray("OverlapSize","StitchingRowCount","StitchingColumnCount","MapRoiTop","MapRoiLeft","MapRoiWidth","MapRoiHeight","ImageAspectRatio","ImageTrimmingSize");
-	mapSettingsDSXTitles = newArray("Overlap Size","Stitching Row Count","Stitching Column Count","Map Roi Top","Map Roi Left","Map Roi Width","Map Roi Height","Image Aspect Ratio","Image Trimming Size");
+	zSettingsDSXTitles = newArray("Focus steps mode", "ZRangeMode", "ZSliceTotal", "ZSliceCount", "ZStartPosition", "ZEndPosition", "ZRange", "ZPitchTravel", "pm height/pixel");
+	mapSettingsDSX = newArray("OverlapSize", "StitchingRowCount", "StitchingColumnCount", "MapRoiTop", "MapRoiLeft", "MapRoiWidth", "MapRoiHeight", "ImageAspectRatio", "ImageTrimmingSize");
+	mapSettingsDSXTitles = newArray("Overlap Size", "Stitching Row Count", "Stitching Column Count", "Map Roi Top", "Map Roi Left", "Map Roi Width", "Map Roi Height", "Image Aspect Ratio", "Image Trimming Size");
 	dsxEXIFData = getExifDataFromOpenImage();
-	observationMethod = getDSXExifTagFromMetaData(dsxEXIFData,"ObservationMethod",true);
-	if (observationMethod=="BF"){
-		settingsDSX = Array.concat(settingsDSX,settingsDSXBF);
-		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsDSXBFTitles);
+	observationMethod = getDSXExifTagFromMetaData(dsxEXIFData, "ObservationMethod", true);
+	if (observationMethod == "BF") {
+		settingsDSX = Array.concat(settingsDSX, settingsDSXBF);
+		settingsDSXTitles = Array.concat(settingsDSXTitles, settingsDSXBFTitles);
+	} else if (observationMethod == "DF") {
+		settingsDSX = Array.concat(settingsDSX, settingsDSXDF);
+		settingsDSXTitles = Array.concat(settingsDSXTitles, settingsDSXDFTitles);
 	}
-	else if (observationMethod=="DF"){
-		settingsDSX = Array.concat(settingsDSX,settingsDSXDF);
-		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsDSXDFTitles);
+	isMonochrome = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData, "IsMonochrome", true));
+	if (isMonochrome) {
+		settingsDSX = Array.concat(settingsDSX, "IsMonochrome");
+		settingsDSXTitles = Array.concat(settingsDSXTitles, "Is Monochrome", true);
+	} else {
+		settingsDSX = Array.concat(settingsDSX, settingsColor);
+		settingsDSXTitles = Array.concat(settingsDSXTitles, settingsColorTitles);
 	}
-	isMonochrome = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData,"IsMonochrome",true));
-	if (isMonochrome){
-		settingsDSX = Array.concat(settingsDSX,"IsMonochrome");
-		settingsDSXTitles = Array.concat(settingsDSXTitles,"Is Monochrome",true);
+	imageRotated = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData, "ImageRotation", true));
+	if (imageRotated) {
+		settingsDSX = Array.concat(settingsDSX, "ImageRotationAngle");
+		settingsDSXTitles = Array.concat(settingsDSXTitles, "Image Rotation Angle");
 	}
-	else{
-		settingsDSX = Array.concat(settingsDSX,settingsColor);
-		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsColorTitles);	
+	aeSetting = getDSXExifTagFromMetaData(dsxEXIFData, "AE", true);
+	if (aeSetting == "true") {
+		settingsDSX = Array.concat(settingsDSX, settingsDSXAE);
+		settingsDSXTitles = Array.concat(settingsDSXTitles, settingsDSXAETitles);
 	}
-	imageRotated = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData,"ImageRotation",true));
-	if (imageRotated){
-		settingsDSX = Array.concat(settingsDSX,"ImageRotationAngle");
-		settingsDSXTitles = Array.concat(settingsDSXTitles,"Image Rotation Angle");
+	hdrProcessing = getDSXExifTagFromMetaData(dsxEXIFData, "HDRProcessing", true);
+	if (hdrProcessing == "true") {
+		settingsDSX = Array.concat(settingsDSX, "HDRMode");
+		settingsDSXTitles = Array.concat(settingsDSXTitles, "HDR Mode");
 	}
-	aeSetting = getDSXExifTagFromMetaData(dsxEXIFData,"AE",true);
-	if (aeSetting=="true"){
-		settingsDSX = Array.concat(settingsDSX,settingsDSXAE);
-		settingsDSXTitles = Array.concat(settingsDSXTitles,settingsDSXAETitles);
+	binning = getDSXExifTagFromMetaData(dsxEXIFData, "Binning", true);
+	if (binning == "true") {
+		settingsDSX = Array.concat(settingsDSX, "BinningLevel");
+		settingsDSXTitles = Array.concat(settingsDSXTitles, "Binning Level");
 	}
-	hdrProcessing = getDSXExifTagFromMetaData(dsxEXIFData,"HDRProcessing",true);
-	if (hdrProcessing=="true"){
-		settingsDSX = Array.concat(settingsDSX,"HDRMode");
-		settingsDSXTitles = Array.concat(settingsDSXTitles,"HDR Mode");
+	imageType = getDSXExifTagFromMetaData(dsxEXIFData, "ImageType", true);
+	if (endsWith(imageType, "ExtendHeight")) {
+		settingsDSX = Array.concat(settingsDSX, zSettingsDSX);
+		settingsDSXTitles = Array.concat(settingsDSXTitles, zSettingsDSXTitles);
 	}
-	binning = getDSXExifTagFromMetaData(dsxEXIFData,"Binning",true);
-	if (binning=="true"){
-		settingsDSX = Array.concat(settingsDSX,"BinningLevel");
-		settingsDSXTitles = Array.concat(settingsDSXTitles,"Binning Level");
+	stitching = getDSXExifTagFromMetaData(dsxEXIFData, "Stitching", true);
+	if (stitching) {
+		settingsDSX = Array.concat(settingsDSX, mapSettingsDSX);
+		settingsDSXTitles = Array.concat(settingsDSXTitles, mapSettingsDSXTitles);
 	}
-	imageType = getDSXExifTagFromMetaData(dsxEXIFData,"ImageType",true);
-	if (endsWith(imageType,"ExtendHeight")){
-		settingsDSX = Array.concat(settingsDSX,zSettingsDSX);
-		settingsDSXTitles = Array.concat(settingsDSXTitles,zSettingsDSXTitles);
-	}
-	stitching = getDSXExifTagFromMetaData(dsxEXIFData,"Stitching",true);
-	if (stitching){
-		settingsDSX = Array.concat(settingsDSX,mapSettingsDSX);
-		settingsDSXTitles = Array.concat(settingsDSXTitles,mapSettingsDSXTitles);	
-	}
-	for(i=0;i<settingsDSX.length;i++){
-		tagReturned = getDSXExifTagFromMetaData(dsxEXIFData,settingsDSX[i],true);
-		if (endsWith(tagReturned,"not found in metaData")){
+	for (i = 0; i < settingsDSX.length; i++) {
+		tagReturned = getDSXExifTagFromMetaData(dsxEXIFData, settingsDSX[i], true);
+		if (endsWith(tagReturned, "not found in metaData")) {
 			settingsDSX = Array.deleteIndex(settingsDSX, i);
 			settingsDSXTitles = Array.deleteIndex(settingsDSXTitles, i);
 		}
 	}
-	settingsN = lengthOf(settingsDSX);	
+	settingsN = lengthOf(settingsDSX);
 	settingsTitlesN = lengthOf(settingsDSXTitles);
-	if (settingsN!=settingsTitlesN){
+	if (settingsN != settingsTitlesN) {
 		IJ.log("Mismatch between " + settingsN + "header names and " + settingsTitlesN + "header titles");
 		Array.print(settingsDSX);
 		Array.print(settingsDSXTitles);
@@ -117,324 +120,322 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	}
 	dsxEXIFData = getExifDataFromOpenImage();
 	observationData = newArray();
-	for(i=0; i<settingsN; i++){
-		observationData[i] = getDSXExifTagFromMetaData(dsxEXIFData,settingsDSX[i],true);
-		if (indexOf(settingsDSXTitles[i],"pm")>=0 || indexOf(settingsDSXTitles[i],"pixels")>=0) observationData[i] = parseInt(observationData[i]);
-		else if (indexOf(settingsDSXTitles[i],"Zoom")>=0 || indexOf(settingsDSXTitles[i],"pixels")>=0) observationData[i] = d2s(observationData[i],3);
+	for (i = 0; i < settingsN; i++) {
+		observationData[i] = getDSXExifTagFromMetaData(dsxEXIFData, settingsDSX[i], true);
+		if (indexOf(settingsDSXTitles[i], "pm") >= 0 || indexOf(settingsDSXTitles[i], "pixels") >= 0) observationData[i] = parseInt(observationData[i]);
+		else if (indexOf(settingsDSXTitles[i], "Zoom") >= 0 || indexOf(settingsDSXTitles[i], "pixels") >= 0) observationData[i] = d2s(observationData[i], 3);
 	}
-	if (settingsN!=observationData.length) exit ("settings array, observation array length mismatch");
+	if (settingsN != observationData.length) exit("settings array, observation array length mismatch");
 	filtObs = newArray();
 	filtSett = newArray();
 	filtSettTitles = newArray();
-	for(i=0,j=0; i<observationData.length; i++){
+	for (i = 0, j = 0; i < observationData.length; i++) {
 		oD = observationData[i];
-		if(!endsWith(oD,"not found") && oD!=NaN) {
+		if (!endsWith(oD, "not found") && oD != NaN) {
 			filtObs[j] = observationData[i];
 			filtSett[j] = settingsDSX[i];
 			filtSettTitles[j] = settingsDSXTitles[i];
 			j++;
 		}
 	}
-	if (filtObs.length!=settingsN){
-			observationData = filtObs;
-			settingsDSX = filtSett;
-			settingsDSXTitles = filtSettTitles;
+	if (filtObs.length != settingsN) {
+		observationData = filtObs;
+		settingsDSX = filtSett;
+		settingsDSXTitles = filtSettTitles;
 	}
 	/* Generate combination labels */
-	iWPx = indexOfArray(settingsDSX,"ImageWidth", -1);
-	if (iWPx>=0) imageWidth = parseInt(observationData[iWPx]);
+	iWPx = indexOfArray(settingsDSX, "ImageWidth", -1);
+	if (iWPx >= 0) imageWidth = parseInt(observationData[iWPx]);
 	cropped = false;
-	if(imageCWidth!=imageWidth){
+	if (imageCWidth != imageWidth) {
 		cropped = true;
-		observationData = Array.concat(imageCWidth,observationData);
-		settingsDSX = Array.concat("imageCWidth",settingsDSX);		
-		if(imageCWidth<imageWidth) settingsDSXTitles = Array.concat("Image cropped to width",settingsDSXTitles);
-		else settingsDSXTitles = Array.concat("Image expanded to width",settingsDSXTitles);
+		observationData = Array.concat(imageCWidth, observationData);
+		settingsDSX = Array.concat("imageCWidth", settingsDSX);
+		if (imageCWidth < imageWidth) settingsDSXTitles = Array.concat("Image cropped to width", settingsDSXTitles);
+		else settingsDSXTitles = Array.concat("Image expanded to width", settingsDSXTitles);
 	}
-	if (iWPx<0) imageWidth = imageCWidth;
-	iWPxPm = indexOfArray(settingsDSX,"ColorDataPerPixelX", -1);
-	if (iWPxPm>=0) pxWidthMicrons = parseInt(observationData[iWPxPm]) * 10E-7;
-	iWPxPmOr = indexOfArray(settingsDSX,"ImageDataPerPixelX", -1);
-	if (iWPxPmOr>=0) pxWidthMicronsOr = parseInt(observationData[iWPxPmOr]) * 10E-7;
-	iHPx = indexOfArray(settingsDSX,"ImageHeight", -1);
-	if (iHPx>=0) imageHeight = maxOf(parseInt(observationData[iHPx]),getHeight());
-	if(imageCHeight!=imageHeight){
+	if (iWPx < 0) imageWidth = imageCWidth;
+	iWPxPm = indexOfArray(settingsDSX, "ColorDataPerPixelX", -1);
+	if (iWPxPm >= 0) pxWidthMicrons = parseInt(observationData[iWPxPm]) * 10E-7;
+	iWPxPmOr = indexOfArray(settingsDSX, "ImageDataPerPixelX", -1);
+	if (iWPxPmOr >= 0) pxWidthMicronsOr = parseInt(observationData[iWPxPmOr]) * 10E-7;
+	iHPx = indexOfArray(settingsDSX, "ImageHeight", -1);
+	if (iHPx >= 0) imageHeight = maxOf(parseInt(observationData[iHPx]), getHeight());
+	if (imageCHeight != imageHeight) {
 		cropped = true;
-		observationData = Array.concat(imageCHeight,observationData);
-		settingsDSX = Array.concat("imageCHeight",settingsDSX);		
-		if(imageCHeight<imageHeight) settingsDSXTitles = Array.concat("Image cropped to Height",settingsDSXTitles);
-		else settingsDSXTitles = Array.concat("Image expanded to Height",settingsDSXTitles);
+		observationData = Array.concat(imageCHeight, observationData);
+		settingsDSX = Array.concat("imageCHeight", settingsDSX);
+		if (imageCHeight < imageHeight) settingsDSXTitles = Array.concat("Image cropped to Height", settingsDSXTitles);
+		else settingsDSXTitles = Array.concat("Image expanded to Height", settingsDSXTitles);
 	}
-	if (cropped==true){
+	if (cropped == true) {
 		newCrop = "" + imageCWidth + " " + fromCharCode(0x00D7) + " " + imageCHeight;
-		observationData = Array.concat(newCrop,observationData);
-		settingsDSX = Array.concat("newCrop",settingsDSX);		
-		if((imageCHeight+imageCWidth)<(imageHeight+imageWidth)) settingsDSXTitles = Array.concat("Image cropped to",settingsDSXTitles);
-		else settingsDSXTitles = Array.concat("Image expanded to",settingsDSXTitles);
+		observationData = Array.concat(newCrop, observationData);
+		settingsDSX = Array.concat("newCrop", settingsDSX);
+		if ((imageCHeight + imageCWidth) < (imageHeight + imageWidth)) settingsDSXTitles = Array.concat("Image cropped to", settingsDSXTitles);
+		else settingsDSXTitles = Array.concat("Image expanded to", settingsDSXTitles);
 	}
-	if (iWPx<0) imageHeight = imageCHeight;
-	iHPxPm = indexOfArray(settingsDSX,"ColorDataPerPixelY", -1);		
-	if (iHPxPm>=0) pxHeightMicrons = parseInt(observationData[iHPxPm]) * 10E-7;
-	iHPxPmOr = indexOfArray(settingsDSX,"ImageDataPerPixelY", -1);		
-	if (iHPxPmOr>=0){
+	if (iWPx < 0) imageHeight = imageCHeight;
+	iHPxPm = indexOfArray(settingsDSX, "ColorDataPerPixelY", -1);
+	if (iHPxPm >= 0) pxHeightMicrons = parseInt(observationData[iHPxPm]) * 10E-7;
+	iHPxPmOr = indexOfArray(settingsDSX, "ImageDataPerPixelY", -1);
+	if (iHPxPmOr >= 0) {
 		pxHeightMicronsOr = parseInt(observationData[iHPxPmOr]) * 10E-7;
-		observationData = Array.concat(pxHeightMicronsOr,observationData);
-		settingsDSXTitles = Array.concat("Original pixel height \("+um+"\)",settingsDSXTitles);
-		settingsDSX = Array.concat("pxHeightMicronsOr",settingsDSX);
-		if (iWPxPm>=0){
-			resizeFactorFromOr = pxWidthMicronsOr/pxWidthMicrons;
-			observationData = Array.concat(pxHeightMicrons,observationData);
-			settingsDSXTitles = Array.concat("Image pixel height \("+um+"\)",settingsDSXTitles);
-			settingsDSX = Array.concat("pxHeightMicrons",settingsDSX);
-			if (resizeFactorFromOr!=1){
-				observationData = Array.concat(resizeFactorFromOr,observationData);
-				settingsDSXTitles = Array.concat("Image scaled from Original by",settingsDSXTitles);
-				settingsDSX = Array.concat("resizeFactorFromOr",settingsDSX);
+		observationData = Array.concat(pxHeightMicronsOr, observationData);
+		settingsDSXTitles = Array.concat("Original pixel height \(" + um + "\)", settingsDSXTitles);
+		settingsDSX = Array.concat("pxHeightMicronsOr", settingsDSX);
+		if (iWPxPm >= 0) {
+			resizeFactorFromOr = pxWidthMicronsOr / pxWidthMicrons;
+			observationData = Array.concat(pxHeightMicrons, observationData);
+			settingsDSXTitles = Array.concat("Image pixel height \(" + um + "\)", settingsDSXTitles);
+			settingsDSX = Array.concat("pxHeightMicrons", settingsDSX);
+			if (resizeFactorFromOr != 1) {
+				observationData = Array.concat(resizeFactorFromOr, observationData);
+				settingsDSXTitles = Array.concat("Image scaled from Original by", settingsDSXTitles);
+				settingsDSX = Array.concat("resizeFactorFromOr", settingsDSX);
 			}
 		}
 	}
-	iObjMag = indexOfArray(settingsDSX,"ObjectiveLensMagnification", -1);
-	iZoomMag = indexOfArray(settingsDSX,"ZoomMagnification", -1);
-	iTrueObjZoomF =  indexOfArray(settingsDSX,"ActualMagnificationFor1xZoom", -1);
-	if (iObjMag>=0 && iZoomMag>=0 && iTrueObjZoomF>=0){
-		actualObjxZoomMag = d2s(parseFloat(observationData[iObjMag]) * parseFloat(observationData[iZoomMag]) * parseFloat(observationData[iTrueObjZoomF]),4);
+	iObjMag = indexOfArray(settingsDSX, "ObjectiveLensMagnification", -1);
+	iZoomMag = indexOfArray(settingsDSX, "ZoomMagnification", -1);
+	iTrueObjZoomF = indexOfArray(settingsDSX, "ActualMagnificationFor1xZoom", -1);
+	if (iObjMag >= 0 && iZoomMag >= 0 && iTrueObjZoomF >= 0) {
+		actualObjxZoomMag = d2s(parseFloat(observationData[iObjMag]) * parseFloat(observationData[iZoomMag]) * parseFloat(observationData[iTrueObjZoomF]), 4);
 		actualObjxZoomMagTitle = "Actual Objective " + fromCharCode(0x00D7) + " Zoom Magnification";
-		observationData = Array.concat(actualObjxZoomMag,observationData);
-		settingsDSXTitles = Array.concat(actualObjxZoomMagTitle,settingsDSXTitles);
-		settingsDSX = Array.concat("actualObjxZoomMag",settingsDSX);
+		observationData = Array.concat(actualObjxZoomMag, observationData);
+		settingsDSXTitles = Array.concat(actualObjxZoomMagTitle, settingsDSXTitles);
+		settingsDSX = Array.concat("actualObjxZoomMag", settingsDSX);
 	}
-	iDIntensityPm = indexOfArray(settingsDSX,"ColorDataPerPixelZ",-1);
-	if (iDIntensityPm>=0){
+	iDIntensityPm = indexOfArray(settingsDSX, "ColorDataPerPixelZ", -1);
+	if (iDIntensityPm >= 0) {
 		depthCal = parseFloat(observationData[iDIntensityPm]);
-		if (depthCal>1){ 
-			depthCalMicrons = depthCal * pow(10,-6);
-			fullDepthRangeMicrons = d2s(256 * 256 * depthCalMicrons,3); /* depth map is 16-bit */
-			observationData = Array.concat(depthCalMicrons,fullDepthRangeMicrons,observationData);
+		if (depthCal > 1) {
+			depthCalMicrons = depthCal * pow(10, -6);
+			fullDepthRangeMicrons = d2s(256 * 256 * depthCalMicrons, 3); /* depth map is 16-bit */
+			observationData = Array.concat(depthCalMicrons, fullDepthRangeMicrons, observationData);
 			depthCalMicronsTitle = "Height Map Calibration \(" + um + "\/intensity Level\)";
 			fullDepthRangeMicronsTitle = "Full 16-bit Height Map Range \(" + um + "\)";
-			settingsDSXTitles = Array.concat(depthCalMicronsTitle,fullDepthRangeMicronsTitle,settingsDSXTitles);
-			settingsDSX = Array.concat("DepthCalMicrons","FullDepthRangeMicrons",settingsDSX);
+			settingsDSXTitles = Array.concat(depthCalMicronsTitle, fullDepthRangeMicronsTitle, settingsDSXTitles);
+			settingsDSX = Array.concat("DepthCalMicrons", "FullDepthRangeMicrons", settingsDSX);
 		}
-	} 
-	iDIntensityPmOr = indexOfArray(settingsDSX,"ImageDataPerPixelZ",-1);
-	if (iDIntensityPmOr>=0){
+	}
+	iDIntensityPmOr = indexOfArray(settingsDSX, "ImageDataPerPixelZ", -1);
+	if (iDIntensityPmOr >= 0) {
 		depthCalOr = parseFloat(observationData[iDIntensityPmOr]);
-		if (depthCalOr>1){ 
-			depthCalMicronsOr = depthCalOr * pow(10,-6);
-			fullDepthRangeMicronsOr = d2s(256 * 256 * depthCalMicronsOr,3); /* depth map is 16-bit */
-			observationData = Array.concat(depthCalMicronsOr,fullDepthRangeMicronsOr,observationData);
+		if (depthCalOr > 1) {
+			depthCalMicronsOr = depthCalOr * pow(10, -6);
+			fullDepthRangeMicronsOr = d2s(256 * 256 * depthCalMicronsOr, 3); /* depth map is 16-bit */
+			observationData = Array.concat(depthCalMicronsOr, fullDepthRangeMicronsOr, observationData);
 			depthCalMicronsTitleOr = "Original Height Map Calibration \(" + um + "\/intensity Level\)";
 			fullDepthRangeMicronsTitleOr = "Original Full 16-bit Height Map Range \(" + um + "\)";
-			settingsDSXTitles = Array.concat(depthCalMicronsTitleOr,fullDepthRangeMicronsTitleOr,settingsDSXTitles);
-			settingsDSX = Array.concat("DepthCalMicronsOr","FullDepthRangeMicronsOr",settingsDSX);
+			settingsDSXTitles = Array.concat(depthCalMicronsTitleOr, fullDepthRangeMicronsTitleOr, settingsDSXTitles);
+			settingsDSX = Array.concat("DepthCalMicronsOr", "FullDepthRangeMicronsOr", settingsDSX);
 		}
 	}
-	if(iWPx>=0 && iWPxPm>=0 && iHPx>=0 && iHPxPm>=0){
+	if (iWPx >= 0 && iWPxPm >= 0 && iHPx >= 0 && iHPxPm >= 0) {
 		imageWMicrons = imageWidth * pxWidthMicrons;
-		imageSizePix = d2s(imageWidth,0) + " " + fromCharCode(0x00D7) + " " + d2s(imageHeight,0);
+		imageSizePix = d2s(imageWidth, 0) + " " + fromCharCode(0x00D7) + " " + d2s(imageHeight, 0);
 		imageHMicrons = parseInt(imageHeight) * pxHeightMicrons;
-		imageSizeMicrons = d2s(imageWMicrons,1) + " " + fromCharCode(0x00D7) + " " + d2s(imageHMicrons,1);
-		if(!cropped){
+		imageSizeMicrons = d2s(imageWMicrons, 1) + " " + fromCharCode(0x00D7) + " " + d2s(imageHMicrons, 1);
+		if (!cropped) {
 			imageSizePixTitle = "Image size \(pixels\)";
-			observationData = Array.concat(imageSizePix,imageSizeMicrons,observationData);
+			observationData = Array.concat(imageSizePix, imageSizeMicrons, observationData);
 			imageSizeMicronsTitle = "Image size \(" + um + "\)";
-			settingsDSXTitles = Array.concat(imageSizePixTitle,imageSizeMicronsTitle,settingsDSXTitles);
-			settingsDSX = Array.concat("ImageSizePix","ImageSizeMicrons",settingsDSX);
-		}
-		else{
+			settingsDSXTitles = Array.concat(imageSizePixTitle, imageSizeMicronsTitle, settingsDSXTitles);
+			settingsDSX = Array.concat("ImageSizePix", "ImageSizeMicrons", settingsDSX);
+		} else {
 			imageCWMicrons = imageCWidth * pxWidthMicrons;
 			imageCHMicrons = imageCHeight * pxHeightMicrons;
-			imageCSizeMicrons = d2s(imageCWMicrons,1) + " " + fromCharCode(0x00D7) + " " + d2s(imageCHMicrons,1);
-			observationData = Array.concat(imageCSizeMicrons,observationData);
+			imageCSizeMicrons = d2s(imageCWMicrons, 1) + " " + fromCharCode(0x00D7) + " " + d2s(imageCHMicrons, 1);
+			observationData = Array.concat(imageCSizeMicrons, observationData);
 			imageCSizeMicronsTitle = "Image size after crop \(" + um + "\)";
-			settingsDSXTitles = Array.concat(imageCSizeMicronsTitle,settingsDSXTitles);
-			settingsDSX = Array.concat("ImageCSizeMicrons",settingsDSX);
+			settingsDSXTitles = Array.concat(imageCSizeMicronsTitle, settingsDSXTitles);
+			settingsDSX = Array.concat("ImageCSizeMicrons", settingsDSX);
 		}
-	}
-	else if(iWPxOr>=0 && iWPxPmOr>=0 && iHPxOr>=0 && iHPxPmOr>=0){
+	} else if (iWPxOr >= 0 && iWPxPmOr >= 0 && iHPxOr >= 0 && iHPxPmOr >= 0) {
 		imageWMicronsOr = parseInt(imageWidth) * pxWidthMicrons;
-		imageSizePixOr = d2s(imageWidth,0) + " " + fromCharCode(0x00D7) + " " + d2s(imageHeight,0);
+		imageSizePixOr = d2s(imageWidth, 0) + " " + fromCharCode(0x00D7) + " " + d2s(imageHeight, 0);
 		imageSizePixTitleOr = "Original Image Size \(pixels\)";
 		imageSizeMicronsTitleOr = "Image size \(" + um + "\)";
 		imageHMicronsOr = parseInt(imageHeight) * pxHeightMicronsOr;
-		imageSizeMicronsOr = d2s(imageWMicronsOr,1) + " " + fromCharCode(0x00D7) + " " + d2s(imageHMicronsOr,1);
-		observationData = Array.concat(imageSizePixOr,imageSizeMicronsOr,observationData);
-		settingsDSXTitles = Array.concat(imageSizePixTitleOr,imageSizeMicronsTitleOr,settingsDSXTitles);
-		settingsDSX = Array.concat("OriginalImageSizePix","OriginalImageSizeMicrons",settingsDSX);
+		imageSizeMicronsOr = d2s(imageWMicronsOr, 1) + " " + fromCharCode(0x00D7) + " " + d2s(imageHMicronsOr, 1);
+		observationData = Array.concat(imageSizePixOr, imageSizeMicronsOr, observationData);
+		settingsDSXTitles = Array.concat(imageSizePixTitleOr, imageSizeMicronsTitleOr, settingsDSXTitles);
+		settingsDSX = Array.concat("OriginalImageSizePix", "OriginalImageSizeMicrons", settingsDSX);
 	}
 	/* End of combination settings */
-	observationData = Array.concat(imageTitle,observationData);
+	observationData = Array.concat(imageTitle, observationData);
 	imageTitleTitle = "Image Title";
-	settingsDSXTitles = Array.concat(imageTitleTitle,settingsDSXTitles);
+	settingsDSXTitles = Array.concat(imageTitleTitle, settingsDSXTitles);
 	/* Update settingsDSX array to match above to help call out default settings */
-	settingsDSX = Array.concat("imageTitle",settingsDSX);
+	settingsDSX = Array.concat("imageTitle", settingsDSX);
 	dataN = lengthOf(observationData);
 	titlesN = lengthOf(settingsDSXTitles);
-	if (dataN!=titlesN) exit("Number of titles \("+titlesN+"\) does not equal number of settings \("+settingsN+"\)");
+	if (dataN != titlesN) exit("Number of titles \(" + titlesN + "\) does not equal number of settings \(" + settingsN + "\)");
 	observationLabels = newArray(dataN);
-	for(i=0; i<dataN; i++) observationLabels[i] = settingsDSXTitles[i] + ": " + observationData[i];
+	for (i = 0; i < dataN; i++) observationLabels[i] = settingsDSXTitles[i] + ": " + observationData[i];
 	/* End of DSX parameter import */
 	defaultLabelChecks = newArray(dataN);
-	Array.fill(defaultLabelChecks,false);
+	Array.fill(defaultLabelChecks, false);
 	/* Now add checkboxes to default parameters */
-	for(i=0; i<dataN; i++) if(indexOfArray(defaultSettings,settingsDSX[i],-1)>-1) defaultLabelChecks[i] = true;
-	if (selectionType>=0) {
-		selEType = selectionType; 
+	for (i = 0; i < dataN; i++)
+		if (indexOfArray(defaultSettings, settingsDSX[i], -1) > -1) defaultLabelChecks[i] = true;
+	if (selectionType >= 0) {
+		selEType = selectionType;
 		selectionExists = true;
 		getSelectionBounds(selEX, selEY, selEWidth, selEHeight);
-	}
-	else selectionExists = false;
-	fontSize = maxOf(12,round(imageDims/140)); /* default font size is small for this variant */
+	} else selectionExists = false;
+	fontSize = maxOf(12, round(imageDims / 140)); /* default font size is small for this variant */
 	lineSpacing = 1.2;
 	outlineStroke = 9; /* default outline stroke: % of font size */
-	shadowDrop = 8;  /* default outer shadow drop: % of font size */
+	shadowDrop = 8; /* default outer shadow drop: % of font size */
 	dIShO = 5; /* default inner shadow drop: % of font size */
 	shadowDisp = shadowDrop;
 	shadowBlur = 1.1 * shadowDrop;
 	shadowDarkness = 60;
 	innerShadowDrop = dIShO;
 	innerShadowDisp = dIShO;
-	innerShadowBlur = floor(dIShO/2);
+	innerShadowBlur = floor(dIShO / 2);
 	innerShadowDarkness = 20;
-	selOffsetX = round(1 + imageCWidth/150); /* default offset of label from edge */
-	selOffsetY = round(1 + imageCHeight/150); /* default offset of label from edge */
-	if (iWPxPm>=0){
+	selOffsetX = round(1 + imageCWidth / 150); /* default offset of label from edge */
+	selOffsetY = round(1 + imageCHeight / 150); /* default offset of label from edge */
+	if (iWPxPm >= 0) {
 		distPerPixel = pxWidthMicrons; /* Defaults to DSX output image, which is automatically resized if beyond a certain size */
-		pxAspectRatio = pxWidthMicrons/pxHeightMicrons;
-	} 
-	else if (iWPxPmOr>=0){
+		pxAspectRatio = pxWidthMicrons / pxHeightMicrons;
+	} else if (iWPxPmOr >= 0) {
 		distPerPixel = pxWidthMicronsOr;
-		pxAspectRatio = pxWidthMicronsOr/pxHeightMicronsOr;
-	} 
+		pxAspectRatio = pxWidthMicronsOr / pxHeightMicronsOr;
+	}
 	/* Then Dialog . . . */
 	Dialog.create("Basic Label Options: " + macroL);
-		if (iWPxPm>=0 || iWPxPmOr>=0){
-			scaleText = "Apply scale of " + distPerPixel + " " + um + " per pixel";
-			if (pxAspectRatio!=1)	scaleText += ", pixel aspect ratio of " + pxAspectRatio);
-			Dialog.addCheckbox(scaleText,true);
-		} 
-		Dialog.addString("Optional list title \((leave blank for none\)","",50);
-		Dialog.addMessage("Labels: ^2 & um etc. replaced by " + fromCharCode(178) + " & " + fromCharCode(181) + "m etc. If the units are in the parameter label, within \(...\) i.e. \(unit\) they will override this selection:");
-		Dialog.addCheckboxGroup(1+dataN/3,3,observationLabels,defaultLabelChecks);
-		Dialog.addRadioButtonGroup("Also output to log window?", newArray("No","Just selected","All parameters"),1,3,"Just selected");
-		Dialog.addCheckbox("Copy metadata to new image if created",true);
-		textLocChoices = newArray("Top Left", "Top Right", "Center", "Bottom Left", "Bottom Right", "Under", "Center of New Selection"); 
-		iLoc = 0;
-		if (selectionExists) {
-			textLocChoices = Array.concat(textLocChoices, "At Selection"); 
-			iLoc = 6;
-		}
-		Dialog.addChoice("Location:", textLocChoices, textLocChoices[iLoc]);
-		Dialog.addMessage("If 'Under' is selected the parameters will be combined on a contrasting bar under the image");
-		Dialog.addNumber("If 'Under' leave this space to right for scale bar or logo",25,0,3,"% of image width");
-		if (selectionExists) {
-			Dialog.addNumber("Selection Bounds: X start = ", selEX);
-			Dialog.addNumber("Selection Bounds: Y start = ", selEY);
-			Dialog.addNumber("Selection Bounds: Width = ", selEWidth);
-			Dialog.addNumber("Selection Bounds: Height = ", selEHeight);
-		}
-		grayChoices = newArray("white", "black", "off-white", "off-black", "light_gray", "gray", "dark_gray");
-		colorChoicesStd = newArray("red", "green", "blue", "cyan", "magenta", "yellow", "pink", "orange", "violet");
-		colorChoicesMod = newArray("garnet", "gold", "aqua_modern", "blue_accent_modern", "blue_dark_modern", "blue_modern", "blue_honolulu", "gray_modern", "green_dark_modern", "green_modern", "green_modern_accent", "green_spring_accent", "orange_modern", "pink_modern", "purple_modern", "red_n_modern", "red_modern", "tan_modern", "violet_modern", "yellow_modern");
-		colorChoicesNeon = newArray("jazzberry_jam", "radical_red", "wild_watermelon", "outrageous_orange", "supernova_orange", "atomic_tangerine", "neon_carrot", "sunglow", "laser_lemon", "electric_lime", "screamin'_green", "magic_mint", "blizzard_blue", "dodger_blue", "shocking_pink", "razzle_dazzle_rose", "hot_magenta");
-		if (isMonochrome){
-			if (imageDepth==24) Dialog.addCheckbox("Aquired image was monochrome, convert to 8-bit grayscale?",true);
-			colorChoices = grayChoices;
-		}
-		else colorChoices = Array.concat(grayChoices, colorChoicesStd, colorChoicesMod, colorChoicesNeon);
-		Dialog.addNumber("Font size:", fontSize, 0, 3,"");
-		Dialog.setInsets(-30, 60, 0);
-		Dialog.addChoice("Text color:", colorChoices, colorChoices[0]);
-		fontStyleChoice = newArray("bold", "bold antialiased", "italic", "italic antialiased", "bold italic", "bold italic antialiased", "unstyled");
-		Dialog.addChoice("Font style:", fontStyleChoice, fontStyleChoice[1]);
-		fontNameChoice = getFontChoiceList();
-		Dialog.addChoice("Font name:", fontNameChoice, fontNameChoice[0]);
-		Dialog.addChoice("Outline color:", colorChoices, colorChoices[1]);
-		Dialog.addCheckbox("Do not use outlines and shadows \(if 'Under' is selected for location, no outlines or shadows will be used\)",false);
-		Dialog.addCheckbox("Tweak the Formatting?",false);
-		Dialog.addCheckbox("Diagnostic output?",false);
-/*	*/
+	if (iWPxPm >= 0 || iWPxPmOr >= 0) {
+		scaleText = "Apply scale of " + distPerPixel + " " + um + " per pixel";
+		if (pxAspectRatio != 1) scaleText += ", pixel aspect ratio of " + pxAspectRatio;
+		Dialog.addCheckbox(scaleText, true);
+	}
+	Dialog.addString("Optional list title \((leave blank for none\)", "", 50);
+	Dialog.addMessage("Labels: ^2 & um etc. replaced by " + fromCharCode(178) + " & " + fromCharCode(181) + "m etc. If the units are in the parameter label, within \(...\) i.e. \(unit\) they will override this selection:");
+	Dialog.addCheckboxGroup(1 + dataN / 3, 3, observationLabels, defaultLabelChecks);
+	Dialog.addRadioButtonGroup("Also output to log window?", newArray("No", "Just selected", "All parameters"), 1, 3, "Just selected");
+	Dialog.addCheckbox("Copy metadata to new image if created", true);
+	textLocChoices = newArray("Top Left", "Top Right", "Center", "Bottom Left", "Bottom Right", "Under", "Center of New Selection");
+	iLoc = 0;
+	if (selectionExists) {
+		textLocChoices = Array.concat(textLocChoices, "At Selection");
+		iLoc = 6;
+	}
+	Dialog.addChoice("Location:", textLocChoices, textLocChoices[iLoc]);
+	Dialog.addMessage("If 'Under' is selected the parameters will be combined on a contrasting bar under the image");
+	Dialog.addNumber("If 'Under' leave this space to right for scale bar or logo", 25, 0, 3, "% of image width");
+	if (selectionExists) {
+		Dialog.addNumber("Selection Bounds: X start = ", selEX);
+		Dialog.addNumber("Selection Bounds: Y start = ", selEY);
+		Dialog.addNumber("Selection Bounds: Width = ", selEWidth);
+		Dialog.addNumber("Selection Bounds: Height = ", selEHeight);
+	}
+	grayChoices = newArray("white", "black", "off-white", "off-black", "light_gray", "gray", "dark_gray");
+	colorChoicesStd = newArray("red", "green", "blue", "cyan", "magenta", "yellow", "pink", "orange", "violet");
+	colorChoicesMod = newArray("garnet", "gold", "aqua_modern", "blue_accent_modern", "blue_dark_modern", "blue_modern", "blue_honolulu", "gray_modern", "green_dark_modern", "green_modern", "green_modern_accent", "green_spring_accent", "orange_modern", "pink_modern", "purple_modern", "red_n_modern", "red_modern", "tan_modern", "violet_modern", "yellow_modern");
+	colorChoicesNeon = newArray("jazzberry_jam", "radical_red", "wild_watermelon", "outrageous_orange", "supernova_orange", "atomic_tangerine", "neon_carrot", "sunglow", "laser_lemon", "electric_lime", "screamin'_green", "magic_mint", "blizzard_blue", "dodger_blue", "shocking_pink", "razzle_dazzle_rose", "hot_magenta");
+	if (isMonochrome) {
+		if (imageDepth == 24) Dialog.addCheckbox("Aquired image was monochrome, convert to 8-bit grayscale?", true);
+		colorChoices = grayChoices;
+	} else colorChoices = Array.concat(grayChoices, colorChoicesStd, colorChoicesMod, colorChoicesNeon);
+	Dialog.addNumber("Font size:", fontSize, 0, 3, "");
+	Dialog.setInsets(-30, 60, 0);
+	Dialog.addChoice("Text color:", colorChoices, colorChoices[0]);
+	fontStyleChoice = newArray("bold", "bold antialiased", "italic", "italic antialiased", "bold italic", "bold italic antialiased", "unstyled");
+	Dialog.addChoice("Font style:", fontStyleChoice, fontStyleChoice[1]);
+	fontNameChoice = getFontChoiceList();
+	Dialog.addChoice("Font name:", fontNameChoice, fontNameChoice[0]);
+	Dialog.addChoice("Outline color:", colorChoices, colorChoices[1]);
+	Dialog.addCheckbox("Do not use outlines and shadows \(if 'Under' is selected for location, no outlines or shadows will be used\)", false);
+	Dialog.addCheckbox("Tweak the Formatting?", false);
+	Dialog.addCheckbox("Diagnostic output?", false);
+	/*	*/
 	Dialog.show();
-		if (iWPxPm>=0 || iWPxPmOr>=0){
-			if (Dialog.getCheckbox()) run("Set Scale...", "distance=1 known=&distPerPixel pixel=&pxAspectRatio unit=um");
+	if (iWPxPm >= 0 || iWPxPmOr >= 0) {
+		if (Dialog.getCheckbox()) run("Set Scale...", "distance=1 known=&distPerPixel pixel=&pxAspectRatio unit=um");
+	}
+	optionalLabel = Dialog.getString();
+	chosenLabels = newArray();
+	chosenParameters = newArray();
+	for (i = 0, j = 0; i < dataN; i++) {
+		if (Dialog.getCheckbox) {
+			chosenLabels[j] = observationLabels[i];
+			chosenParameters[j] = settingsDSX[i]; /* Use for saving prefs */
+			j++;
 		}
-		optionalLabel = Dialog.getString();
-		chosenLabels = newArray();
-		chosenParameters = newArray();
-		for (i=0,j=0; i<dataN; i++){
-			if (Dialog.getCheckbox){
-				chosenLabels[j] = observationLabels[i];
-				chosenParameters[j] = settingsDSX[i]; /* Use for saving prefs */
-				j++;
-			}
-		}
-		if (optionalLabel!="") chosenLabels = Array.concat(optionalLabel,chosenLabels);
-		logOutput = Dialog.getRadioButton();
-		transferMetadata = Dialog.getCheckbox();
-		textLocChoice = Dialog.getChoice();
-		underClear = Dialog.getNumber();
-		if (selectionExists==1) {
-			selEX =  Dialog.getNumber();
-			selEY =  Dialog.getNumber();
-			selEWidth =  Dialog.getNumber();
-			selEHeight =  Dialog.getNumber();
-		}
-		if (isMonochrome){
-			if (Dialog.getCheckbox()) run("8-bit");
-		}
-		fontSize =  Dialog.getNumber();
-		selColor = Dialog.getChoice();
-		fontStyle = Dialog.getChoice();
-		fontName = Dialog.getChoice();
-		outlineColor = Dialog.getChoice();
-		notFancy = Dialog.getCheckbox(); 
-		tweakFormat = Dialog.getCheckbox();
-		diagnostics = Dialog.getCheckbox();
-/*	*/
-	if(diagnostics){
-		IJ.log("observationData array \("+observationData.length+" entries\):");
-		IJ.log("settingsDSXTitles array \("+settingsDSXTitles.length+" entries\):");
-		IJ.log("settingsDSX array \("+settingsDSX.length+" entries\):");
-		maxRows = maxOf(settingsDSX.length,maxOf(observationData.length,settingsDSXTitles.length));
+	}
+	if (optionalLabel != "") chosenLabels = Array.concat(optionalLabel, chosenLabels);
+	logOutput = Dialog.getRadioButton();
+	transferMetadata = Dialog.getCheckbox();
+	textLocChoice = Dialog.getChoice();
+	underClear = Dialog.getNumber();
+	if (selectionExists == 1) {
+		selEX = Dialog.getNumber();
+		selEY = Dialog.getNumber();
+		selEWidth = Dialog.getNumber();
+		selEHeight = Dialog.getNumber();
+	}
+	if (isMonochrome) {
+		if (Dialog.getCheckbox()) run("8-bit");
+	}
+	fontSize = Dialog.getNumber();
+	selColor = Dialog.getChoice();
+	fontStyle = Dialog.getChoice();
+	fontName = Dialog.getChoice();
+	outlineColor = Dialog.getChoice();
+	notFancy = Dialog.getCheckbox();
+	tweakFormat = Dialog.getCheckbox();
+	diagnostics = Dialog.getCheckbox();
+	/*	*/
+	if (diagnostics) {
+		IJ.log("observationData array \(" + observationData.length + " entries\):");
+		IJ.log("settingsDSXTitles array \(" + settingsDSXTitles.length + " entries\):");
+		IJ.log("settingsDSX array \(" + settingsDSX.length + " entries\):");
+		maxRows = maxOf(settingsDSX.length, maxOf(observationData.length, settingsDSXTitles.length));
 		IJ.log("settingsDSXTitles,     settingsDSX,     observationData\n=============================================");
-		for(i=0;i<maxRows;i++){
+		for (i = 0; i < maxRows; i++) {
 			row = "";
-			if (i<settingsDSXTitles.length) row += "" + settingsDSXTitles[i] + ",     ";
+			if (i < settingsDSXTitles.length) row += "" + settingsDSXTitles[i] + ",     ";
 			else row += "settingsDSXTitles " + i + ": Missing,";
-			if (i<settingsDSX.length) row += "" + settingsDSX[i] + ",     ";
+			if (i < settingsDSX.length) row += "" + settingsDSX[i] + ",     ";
 			else row += "settingsDSX " + i + ": Missing,";
-			if (i<observationData.length) row += "" + observationData[i];
+			if (i < observationData.length) row += "" + observationData[i];
 			else row += "observationDatas " + i + ": Missing";
 			IJ.log(row);
 		}
 	}
-	if(startsWith(logOutput,"Just")) for (i=0; i<lengthOf(chosenLabels); i++) print(chosenLabels[i]);
-	if(startsWith(logOutput,"All")) for (i=0; i<lengthOf(observationLabels); i++) print(observationLabels[i]);
-	if(!startsWith(logOutput,"No")) print("------------\n");
-	if (textLocChoice=="Under") notFancy = true;
-	if (tweakFormat) {	
+	if (startsWith(logOutput, "Just"))
+		for (i = 0; i < lengthOf(chosenLabels); i++) print(chosenLabels[i]);
+	if (startsWith(logOutput, "All"))
+		for (i = 0; i < lengthOf(observationLabels); i++) print(observationLabels[i]);
+	if (!startsWith(logOutput, "No")) print("------------\n");
+	if (textLocChoice == "Under") notFancy = true;
+	if (tweakFormat) {
 		Dialog.create("Advanced Formatting Options");
-		Dialog.addNumber("X offset from edge \(for corners only\)", selOffsetX,0,1,"pixels");
-		Dialog.addNumber("Y offset from edge \(for corners only\)", selOffsetY,0,1,"pixels");
-		Dialog.addNumber("Line Spacing", lineSpacing,0,3,"");
-		if(!notFancy) {
-			Dialog.addNumber("Outline stroke:", outlineStroke,0,3,"% of font size");
+		Dialog.addNumber("X offset from edge \(for corners only\)", selOffsetX, 0, 1, "pixels");
+		Dialog.addNumber("Y offset from edge \(for corners only\)", selOffsetY, 0, 1, "pixels");
+		Dialog.addNumber("Line Spacing", lineSpacing, 0, 3, "");
+		if (!notFancy) {
+			Dialog.addNumber("Outline stroke:", outlineStroke, 0, 3, "% of font size");
 			Dialog.addChoice("Outline (background) color:", colorChoices, colorChoices[1]);
-			Dialog.addNumber("Shadow drop: ±", shadowDrop,0,3,"% of font size");
-			Dialog.addNumber("Shadow displacement right: ±", shadowDrop,0,3,"% of font size");
-			Dialog.addNumber("Shadow Gaussian blur:", floor(0.75 * shadowDrop),0,3,"% of font size");
-			Dialog.addNumber("Shadow Darkness:", 75,0,3,"%\(darkest = 100%\)");
+			Dialog.addNumber("Shadow drop: ±", shadowDrop, 0, 3, "% of font size");
+			Dialog.addNumber("Shadow displacement right: ±", shadowDrop, 0, 3, "% of font size");
+			Dialog.addNumber("Shadow Gaussian blur:", floor(0.75 * shadowDrop), 0, 3, "% of font size");
+			Dialog.addNumber("Shadow Darkness:", 75, 0, 3, "%\(darkest = 100%\)");
 			// Dialog.addMessage("The following \"Inner Shadow\" options do not change the Overlay Labels");
-			Dialog.addNumber("Inner shadow drop: ±", dIShO,0,3,"% of font size");
-			Dialog.addNumber("Inner displacement right: ±", dIShO,0,3,"% of font size");
-			Dialog.addNumber("Inner shadow mean blur:",floor(dIShO/2),1,3,"% of font size");
-			Dialog.addNumber("Inner Shadow Darkness:", 20,0,3,"% \(darkest = 100%\)");
+			Dialog.addNumber("Inner shadow drop: ±", dIShO, 0, 3, "% of font size");
+			Dialog.addNumber("Inner displacement right: ±", dIShO, 0, 3, "% of font size");
+			Dialog.addNumber("Inner shadow mean blur:", floor(dIShO / 2), 1, 3, "% of font size");
+			Dialog.addNumber("Inner Shadow Darkness:", 20, 0, 3, "% \(darkest = 100%\)");
 		}
 		Dialog.show();
 		selOffsetX = Dialog.getNumber();
 		selOffsetY = Dialog.getNumber();
 		lineSpacing = Dialog.getNumber();
-		if(!notFancy) {
+		if (!notFancy) {
 			outlineStroke = Dialog.getNumber();
 			outlineColor = Dialog.getChoice();
 			shadowDrop = Dialog.getNumber();
@@ -447,17 +448,17 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 			innerShadowDarkness = Dialog.getNumber();
 		}
 	}
-	if(!notFancy) {
-		negAdj = 0.5;  /* negative offsets appear exaggerated at full displacement */
-		if (shadowDrop<0) shadowDrop *= negAdj;
-		if (shadowDisp<0) shadowDisp *= negAdj;
-		if (shadowBlur<0) shadowBlur *= negAdj;
-		if (innerShadowDrop<0) innerShadowDrop *= negAdj;
-		if (innerShadowDisp<0) innerShadowDisp *= negAdj;
-		if (innerShadowBlur<0) innerShadowBlur *= negAdj;
+	if (!notFancy) {
+		negAdj = 0.5; /* negative offsets appear exaggerated at full displacement */
+		if (shadowDrop < 0) shadowDrop *= negAdj;
+		if (shadowDisp < 0) shadowDisp *= negAdj;
+		if (shadowBlur < 0) shadowBlur *= negAdj;
+		if (innerShadowDrop < 0) innerShadowDrop *= negAdj;
+		if (innerShadowDisp < 0) innerShadowDisp *= negAdj;
+		if (innerShadowBlur < 0) innerShadowBlur *= negAdj;
 	}
-	fontFactor = fontSize/100;
-	if(!notFancy) {
+	fontFactor = fontSize / 100;
+	if (!notFancy) {
 		outlineStroke = floor(fontFactor * outlineStroke);
 		shadowDrop = floor(fontFactor * shadowDrop);
 		shadowDisp = floor(fontFactor * shadowDisp);
@@ -466,25 +467,24 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		innerShadowDisp = floor(fontFactor * innerShadowDisp);
 		innerShadowBlur = floor(fontFactor * innerShadowBlur);
 	}
-	if (fontStyle=="unstyled") fontStyle="";
+	if (fontStyle == "unstyled") fontStyle = "";
 	textChoiceLines = lengthOf(chosenLabels);
 	setFont(fontName, fontSize, fontStyle);
 	longestStringWidth = 0;
-	if(textLocChoice=="under"){
+	if (textLocChoice == "under") {
 		underLabels = newArray("");
 		newLine = "";
 		lineStart = selOffsetX;
-		for (i=0,j=0; i<textChoiceLines; i++){
+		for (i = 0, j = 0; i < textChoiceLines; i++) {
 			labelLength = getStringWidth(chosenLabels[i]);
-			if (labelLength>longestStringWidth) longestStringWidth = labelLength;
-			if(textLocChoice=="under"){
-				if (lineStart + selOffsetX + labelLength + 4 < ((100-underClear)*imageCWidth/100)){
+			if (labelLength > longestStringWidth) longestStringWidth = labelLength;
+			if (textLocChoice == "under") {
+				if (lineStart + selOffsetX + labelLength + 4 < ((100 - underClear) * imageCWidth / 100)) {
 					newLine += chosenLabels[i];
 					underLabels[j] = newLine;
 					newLine += "    ";
 					lineStart = getStringWidth(newLine);
-				}
-				else {
+				} else {
 					newLine = chosenLabels[i] + "    ";
 					j++;
 					underLabels[j] = newLine;
@@ -492,10 +492,9 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 				}
 			}
 		}
-		underLabelsN = j+1;
+		underLabelsN = j + 1;
 		linesSpace = lineSpacing * underLabelsN * fontSize;
-	}
-	else linesSpace = lineSpacing * (textChoiceLines) * fontSize;
+	} else linesSpace = lineSpacing * (textChoiceLines) * fontSize;
 	if (textLocChoice == "Top Left") {
 		selEX = selOffsetX;
 		selEY = selOffsetY;
@@ -503,62 +502,62 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		selEX = imageCWidth - longestStringWidth - selOffsetX;
 		selEY = selOffsetY;
 	} else if (textLocChoice == "Center") {
-		selEX = round((imageCWidth - longestStringWidth)/2);
-		selEY = round((imageCHeight - linesSpace)/2);
+		selEX = round((imageCWidth - longestStringWidth) / 2);
+		selEY = round((imageCHeight - linesSpace) / 2);
 	} else if (textLocChoice == "Bottom Left") {
 		selEX = selOffsetX;
 		selEY = imageCHeight - (selOffsetY + linesSpace);
 	} else if (textLocChoice == "Under") {
 		selEX = selOffsetX;
-		selEY = imageCHeight + selOffsetY +  fontSize + lineSpacing;	
+		selEY = imageCHeight + selOffsetY + fontSize + lineSpacing;
 	} else if (textLocChoice == "Bottom Right") {
 		selEX = imageCWidth - longestStringWidth - selOffsetX;
 		selEY = imageCHeight - (selOffsetY + linesSpace);
-	} else if (textLocChoice == "Center of New Selection"){
+	} else if (textLocChoice == "Center of New Selection") {
 		setTool("rectangle");
-		if (is("Batch Mode")==true) setBatchMode(false); /* Does not accept interaction while batch mode is on */
-		msgtitle="Location for the text labels...";
+		if (is("Batch Mode") == true) setBatchMode(false); /* Does not accept interaction while batch mode is on */
+		msgtitle = "Location for the text labels...";
 		msg = "Draw a box in the image where you want to center the text labels...";
 		waitForUser(msgtitle, msg);
 		getSelectionBounds(newSelEX, newSelEY, newSelEWidth, newSelEHeight);
-		selEX = newSelEX + round((newSelEWidth/2) - longestStringWidth/1.5);
-		selEY = newSelEY + round((newSelEHeight/2) - (linesSpace/2));
-		if (is("Batch Mode")==false) setBatchMode(true);	/* toggle batch mode back on */
-	} else if (selectionExists==1) {
-		selEX = selEX + round((selEWidth/2) - longestStringWidth/1.5);
-		selEY = selEY + round((selEHeight/2) - (linesSpace/2));
+		selEX = newSelEX + round((newSelEWidth / 2) - longestStringWidth / 1.5);
+		selEY = newSelEY + round((newSelEHeight / 2) - (linesSpace / 2));
+		if (is("Batch Mode") == false) setBatchMode(true); /* toggle batch mode back on */
+	} else if (selectionExists == 1) {
+		selEX = selEX + round((selEWidth / 2) - longestStringWidth / 1.5);
+		selEY = selEY + round((selEHeight / 2) - (linesSpace / 2));
 	}
 	run("Select None");
-	if (selEY<=1.5*fontSize)
+	if (selEY <= 1.5 * fontSize)
 		selEY += fontSize;
-	if (selEX<selOffsetX) selEX = selOffsetX;
+	if (selEX < selOffsetX) selEX = selOffsetX;
 	endX = selEX + longestStringWidth;
-	if ((endX+selOffsetX)>imageCWidth) selEX = imageCWidth - longestStringWidth - selOffsetX;
+	if ((endX + selOffsetX) > imageCWidth) selEX = imageCWidth - longestStringWidth - selOffsetX;
 	textLabelX = selEX;
 	textLabelY = selEY;
 	setBatchMode(true);
 	roiManager("show none");
 	run("Duplicate...", imageTitle + "+text");
-	if (transferMetadata) setMetadata("Info",dsxEXIFData);
+	if (transferMetadata) setMetadata("Info", dsxEXIFData);
 	labeledImage = getTitle();
-	setFont(fontName,fontSize, fontStyle);
-	if(textLocChoice=="Under"){
+	setFont(fontName, fontSize, fontStyle);
+	if (textLocChoice == "Under") {
 		newHeight = imageCHeight + (2 * selOffsetY + (fontSize + lineSpacing) * (underLabelsN + 0.5));
 		selColors = getColorArrayFromColorName(selColor);
-		Array.getStatistics(selColors,null,null,meanSelColInt,null);
-		if (meanSelColInt<128) run("Colors...", "background=white");
+		Array.getStatistics(selColors, null, null, meanSelColInt, null);
+		if (meanSelColInt < 128) run("Colors...", "background=white");
 		else run("Colors...", "background=black");
 		run("Canvas Size...", "width=[imageCWidth] height=[newHeight] position=Top-Center");
-		run ("Colors...", "background=white");
+		run("Colors...", "background=white");
 	}
-	if(!notFancy) {
+	if (!notFancy) {
 		newImage("label_mask", "8-bit black", imageCWidth, imageCHeight, 1);
 		roiManager("deselect");
 		run("Select None");
 		/* Draw summary over top of labels */
-		setColor(255,255,255);
+		setColor(255, 255, 255);
 		xStart = textLabelX;
-		for (i=0; i<textChoiceLines; i++) {
+		for (i = 0; i < textChoiceLines; i++) {
 			if (textLocChoice == "Top Right" || textLocChoice == "Bottom Right")
 				xStart = (textLabelX + longestStringWidth - getStringWidth(chosenLabels[i]));
 			drawString(chosenLabels[i], xStart, textLabelY);
@@ -568,16 +567,16 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		setOption("BlackBackground", false);
 		run("Convert to Mask");
 		/* Create drop shadow if desired */
-		if (shadowDrop!=0 || shadowDisp!=0 || shadowBlur!=0)
+		if (shadowDrop != 0 || shadowDisp != 0 || shadowBlur != 0)
 			createShadowDropFromMask();
 		// setBatchMode("exit & display");
 		/* Create inner shadow if desired */
-		if (innerShadowDrop!=0 || innerShadowDisp!=0 || innerShadowBlur!=0)
+		if (innerShadowDrop != 0 || innerShadowDisp != 0 || innerShadowBlur != 0)
 			createInnerShadowFromMask();
-		if (isOpen("shadow") && shadowDarkness>0)
-			imageCalculator("Subtract", labeledImage,"shadow");
-		if (isOpen("shadow") && shadowDarkness<0)
-			imageCalculator("Subtract", labeledImage,"shadow"); /* glow */
+		if (isOpen("shadow") && shadowDarkness > 0)
+			imageCalculator("Subtract", labeledImage, "shadow");
+		if (isOpen("shadow") && shadowDarkness < 0)
+			imageCalculator("Subtract", labeledImage, "shadow"); /* glow */
 		run("Select None");
 		getSelectionFromMask("label_mask");
 		run("Enlarge...", "enlarge=[outlineStroke] pixel");
@@ -588,27 +587,25 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		setBackgroundFromColorName(selColor);
 		run("Clear");
 		run("Select None");
-		if (isOpen("inner_shadow")) imageCalculator("Subtract", labeledImage,"inner_shadow");
+		if (isOpen("inner_shadow")) imageCalculator("Subtract", labeledImage, "inner_shadow");
 		closeImageByTitle("shadow");
 		closeImageByTitle("inner_shadow");
 		closeImageByTitle("label_mask");
 		selectWindow(labeledImage);
-	}
-	else {
+	} else {
 		colorHex = getHexColorFromColorName(selColor);
 		setColor(colorHex);
 		xStart = textLabelX;
-		if(textLocChoice=="under"){
-			for (i=0; i<underLabelsN; i++) {
+		if (textLocChoice == "under") {
+			for (i = 0; i < underLabelsN; i++) {
 				drawString(underLabels[i], xStart, textLabelY);
 				textLabelY += lineSpacing * fontSize;
 			}
-		}
-		else {
-			for (i=0; i<textChoiceLines; i++) {
+		} else {
+			for (i = 0; i < textChoiceLines; i++) {
 				if (textLocChoice == "Top Right" || textLocChoice == "Bottom Right")
 					xStart = (textLabelX + longestStringWidth - getStringWidth(chosenLabels[i]));
-				if(textLocChoice=="under") drawString(underLabels[i], xStart, textLabelY);
+				if (textLocChoice == "under") drawString(underLabels[i], xStart, textLabelY);
 				else drawString(chosenLabels[i], xStart, textLabelY);
 				textLabelY += lineSpacing * fontSize;
 			}
@@ -617,8 +614,8 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	/* now rename image to reflect changes and avoid danger of overwriting original */
 	labeledImageNameWOExt = unCleanLabel(stripKnownExtensionFromString(labeledImage));
 	rename(labeledImageNameWOExt + "_SettingLabels");
-	prefsParametersString = arrayToString(chosenParameters,prefsDelimiter);
-	call("ij.Prefs.set", prefsNameKey+"lastParameters", prefsParametersString);
+	prefsParametersString = arrayToString(chosenParameters, prefsDelimiter);
+	call("ij.Prefs.set", prefsNameKey + "lastParameters", prefsParametersString);
 	setBatchMode("exit & display");
 	showStatus("Fancy DSX annotation macro finished");
 /* 
@@ -752,7 +749,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 		return tagValue;
 	}
 	function getExifDataFromOpenImage(){
-		/* uses exifReader plugin: https://imagej.nih.gov/ij/plugins/exif-reader.html
+		/* uses exifReader plugin: https://imagej.net/plugins/exif-reader.html
 		The exif reader plugin will not load a new image directly if one is open, it will only use the open image
 		- this is why this version opens a new image separately
 		v230512: 1st version
