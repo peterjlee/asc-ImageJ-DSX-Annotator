@@ -10,10 +10,10 @@
 	v230512: Switched to using exifReader plugin to get a more complete exif import.
 	v230513: Smarter about monochrome images. Adds transfer of metaData option.
 	v230516: Fixed old variable names left in imported scales lines. f1: updated DSX tag functions.f2 update stripKnowExtension. F3: Updated indexOfArray functions. F4: getColorArrayFromColorName_v230908.  F10 : Replaced function: pad. F11: Updated getColorFromColorName function (012324). F12: updated function unCleanLabel.
-	v250313: Removed stray ) from line 313. Beautified.
+	v250313: Removed stray ) from line 313. Beautified. b: Fixes for exif-reader issue in ImageJ.
  */
 macro "Add Multiple Lines of Metadata to DSX Image" {
-	macroL = "DSX_Annotator_v250313.ijm";
+	macroL = "DSX_Annotator_v250313b.ijm";
 	if (nImages == 0) exit("sorry, this macro only works on open images");
 	imageTitle = getTitle();
 	um = getInfo("micrometer.abbreviation");
@@ -57,55 +57,72 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	mapSettingsDSX = newArray("OverlapSize", "StitchingRowCount", "StitchingColumnCount", "MapRoiTop", "MapRoiLeft", "MapRoiWidth", "MapRoiHeight", "ImageAspectRatio", "ImageTrimmingSize");
 	mapSettingsDSXTitles = newArray("Overlap Size", "Stitching Row Count", "Stitching Column Count", "Map Roi Top", "Map Roi Left", "Map Roi Width", "Map Roi Height", "Image Aspect Ratio", "Image Trimming Size");
 	dsxEXIFData = getExifDataFromOpenImage();
+	nFString = " not found in metaData";
 	observationMethod = getDSXExifTagFromMetaData(dsxEXIFData, "ObservationMethod", true);
-	if (observationMethod == "BF") {
-		settingsDSX = Array.concat(settingsDSX, settingsDSXBF);
-		settingsDSXTitles = Array.concat(settingsDSXTitles, settingsDSXBFTitles);
-	} else if (observationMethod == "DF") {
-		settingsDSX = Array.concat(settingsDSX, settingsDSXDF);
-		settingsDSXTitles = Array.concat(settingsDSXTitles, settingsDSXDFTitles);
+	if (indexOf(observationMethod, nFString) < 0){
+		if (observationMethod == "BF") {
+			settingsDSX = Array.concat(settingsDSX, settingsDSXBF);
+			settingsDSXTitles = Array.concat(settingsDSXTitles, settingsDSXBFTitles);
+		} else if (observationMethod == "DF") {
+			settingsDSX = Array.concat(settingsDSX, settingsDSXDF);
+			settingsDSXTitles = Array.concat(settingsDSXTitles, settingsDSXDFTitles);
+		}
 	}
 	isMonochrome = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData, "IsMonochrome", true));
-	if (isMonochrome) {
-		settingsDSX = Array.concat(settingsDSX, "IsMonochrome");
-		settingsDSXTitles = Array.concat(settingsDSXTitles, "Is Monochrome", true);
-	} else {
-		settingsDSX = Array.concat(settingsDSX, settingsColor);
-		settingsDSXTitles = Array.concat(settingsDSXTitles, settingsColorTitles);
+	if (indexOf(isMonochrome, nFString) < 0){
+		if (isMonochrome) {
+			settingsDSX = Array.concat(settingsDSX, "IsMonochrome");
+			settingsDSXTitles = Array.concat(settingsDSXTitles, "Is Monochrome", true);
+		} else {
+			settingsDSX = Array.concat(settingsDSX, settingsColor);
+			settingsDSXTitles = Array.concat(settingsDSXTitles, settingsColorTitles);
+		}
 	}
 	imageRotated = toLowerCase(getDSXExifTagFromMetaData(dsxEXIFData, "ImageRotation", true));
-	if (imageRotated) {
-		settingsDSX = Array.concat(settingsDSX, "ImageRotationAngle");
-		settingsDSXTitles = Array.concat(settingsDSXTitles, "Image Rotation Angle");
+	if (indexOf(imageRotated, nFString) < 0){
+		if (imageRotated) {
+			settingsDSX = Array.concat(settingsDSX, "ImageRotationAngle");
+			settingsDSXTitles = Array.concat(settingsDSXTitles, "Image Rotation Angle");
+		}
 	}
 	aeSetting = getDSXExifTagFromMetaData(dsxEXIFData, "AE", true);
-	if (aeSetting == "true") {
-		settingsDSX = Array.concat(settingsDSX, settingsDSXAE);
-		settingsDSXTitles = Array.concat(settingsDSXTitles, settingsDSXAETitles);
+	if (indexOf(aeSetting, nFString) < 0){
+		if (aeSetting == "true") {
+			settingsDSX = Array.concat(settingsDSX, settingsDSXAE);
+			settingsDSXTitles = Array.concat(settingsDSXTitles, settingsDSXAETitles);
+		}
 	}
 	hdrProcessing = getDSXExifTagFromMetaData(dsxEXIFData, "HDRProcessing", true);
-	if (hdrProcessing == "true") {
-		settingsDSX = Array.concat(settingsDSX, "HDRMode");
-		settingsDSXTitles = Array.concat(settingsDSXTitles, "HDR Mode");
+	if (indexOf(hdrProcessing, nFString) < 0){
+		if (hdrProcessing == "true") {
+			settingsDSX = Array.concat(settingsDSX, "HDRMode");
+			settingsDSXTitles = Array.concat(settingsDSXTitles, "HDR Mode");
+		}
 	}
 	binning = getDSXExifTagFromMetaData(dsxEXIFData, "Binning", true);
-	if (binning == "true") {
-		settingsDSX = Array.concat(settingsDSX, "BinningLevel");
-		settingsDSXTitles = Array.concat(settingsDSXTitles, "Binning Level");
+	if (indexOf(binning, nFString) < 0){
+		if (binning == "true") {
+			settingsDSX = Array.concat(settingsDSX, "BinningLevel");
+			settingsDSXTitles = Array.concat(settingsDSXTitles, "Binning Level");
+		}
 	}
 	imageType = getDSXExifTagFromMetaData(dsxEXIFData, "ImageType", true);
-	if (endsWith(imageType, "ExtendHeight")) {
-		settingsDSX = Array.concat(settingsDSX, zSettingsDSX);
-		settingsDSXTitles = Array.concat(settingsDSXTitles, zSettingsDSXTitles);
+	if (indexOf(imageType, nFString) < 0){
+		if (endsWith(imageType, "ExtendHeight")) {
+			settingsDSX = Array.concat(settingsDSX, zSettingsDSX);
+			settingsDSXTitles = Array.concat(settingsDSXTitles, zSettingsDSXTitles);
+		}
 	}
 	stitching = getDSXExifTagFromMetaData(dsxEXIFData, "Stitching", true);
-	if (stitching) {
-		settingsDSX = Array.concat(settingsDSX, mapSettingsDSX);
-		settingsDSXTitles = Array.concat(settingsDSXTitles, mapSettingsDSXTitles);
+	if (indexOf(stitching, nFString) < 0){
+		if (stitching) {
+			settingsDSX = Array.concat(settingsDSX, mapSettingsDSX);
+			settingsDSXTitles = Array.concat(settingsDSXTitles, mapSettingsDSXTitles);
+		}
 	}
 	for (i = 0; i < settingsDSX.length; i++) {
 		tagReturned = getDSXExifTagFromMetaData(dsxEXIFData, settingsDSX[i], true);
-		if (endsWith(tagReturned, "not found in metaData")) {
+		if (endsWith(tagReturned, nFString)){
 			settingsDSX = Array.deleteIndex(settingsDSX, i);
 			settingsDSXTitles = Array.deleteIndex(settingsDSXTitles, i);
 		}
@@ -131,7 +148,7 @@ macro "Add Multiple Lines of Metadata to DSX Image" {
 	filtSettTitles = newArray();
 	for (i = 0, j = 0; i < observationData.length; i++) {
 		oD = observationData[i];
-		if (!endsWith(oD, "not found") && oD != NaN) {
+		if (!endsWith(oD, nFString) && oD != NaN) {		
 			filtObs[j] = observationData[i];
 			filtSett[j] = settingsDSX[i];
 			filtSettTitles[j] = settingsDSXTitles[i];
